@@ -1,5 +1,5 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 
 const client = new DynamoDBClient({});
@@ -51,6 +51,8 @@ exports.handler = async (event) => {
         return await nextRound(args);
       case 'endGame':
         return await endGame(args);
+      case 'deleteAllData':
+        return await deleteAllData(args);
 
       // Queries
       case 'getRoom':
@@ -667,4 +669,73 @@ async function listAnswers({ roomId }) {
   }));
 
   return result.Items || [];
+}
+
+// 全データ削除（開発用）
+async function deleteAllData() {
+  console.log('deleteAllData called');
+
+  let deletedCounts = {
+    rooms: 0,
+    players: 0,
+    answers: 0,
+  };
+
+  try {
+    // 回答を削除
+    const answersResult = await ddb.send(new ScanCommand({
+      TableName: ANSWER_TABLE,
+    }));
+
+    if (answersResult.Items && answersResult.Items.length > 0) {
+      for (const answer of answersResult.Items) {
+        await ddb.send(new DeleteCommand({
+          TableName: ANSWER_TABLE,
+          Key: { answerId: answer.answerId },
+        }));
+        deletedCounts.answers++;
+      }
+    }
+
+    // プレイヤーを削除
+    const playersResult = await ddb.send(new ScanCommand({
+      TableName: PLAYER_TABLE,
+    }));
+
+    if (playersResult.Items && playersResult.Items.length > 0) {
+      for (const player of playersResult.Items) {
+        await ddb.send(new DeleteCommand({
+          TableName: PLAYER_TABLE,
+          Key: { playerId: player.playerId },
+        }));
+        deletedCounts.players++;
+      }
+    }
+
+    // ルームを削除
+    const roomsResult = await ddb.send(new ScanCommand({
+      TableName: ROOM_TABLE,
+    }));
+
+    if (roomsResult.Items && roomsResult.Items.length > 0) {
+      for (const room of roomsResult.Items) {
+        await ddb.send(new DeleteCommand({
+          TableName: ROOM_TABLE,
+          Key: { roomId: room.roomId },
+        }));
+        deletedCounts.rooms++;
+      }
+    }
+
+    console.log('All data deleted successfully:', deletedCounts);
+
+    return {
+      success: true,
+      message: 'All data deleted successfully',
+      deletedCounts,
+    };
+  } catch (error) {
+    console.error('Error deleting data:', error);
+    throw new Error('Failed to delete all data');
+  }
 }

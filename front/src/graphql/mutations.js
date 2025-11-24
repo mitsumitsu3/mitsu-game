@@ -117,3 +117,17 @@ export const LEAVE_ROOM = `
     leaveRoom(roomId: $roomId, playerId: $playerId)
   }
 `
+
+export const DELETE_ALL_DATA = `
+  mutation DeleteAllData {
+    deleteAllData {
+      success
+      message
+      deletedCounts {
+        rooms
+        players
+        answers
+      }
+    }
+  }
+`

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import DrawingCanvas from './DrawingCanvas'
 import NicoComments from './NicoComments'
 import { GET_ROOM } from './graphql/queries'
-import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM } from './graphql/mutations'
+import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, DELETE_ALL_DATA } from './graphql/mutations'
 import './MultiplayerGame.css'
 
 const POLLING_INTERVAL = 3000 // 3秒ごとにポーリング
@@ -201,6 +201,35 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     }
   }
 
+  const deleteAllData = async () => {
+    if (!confirm('本当に全てのデータを削除しますか？この操作は取り消せません。')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      console.log('Calling deleteAllData mutation...')
+      const result = await callGraphQL(DELETE_ALL_DATA)
+      console.log('deleteAllData result:', result)
+      alert(`削除完了:\nルーム: ${result.data.deleteAllData.deletedCounts.rooms}件\nプレイヤー: ${result.data.deleteAllData.deletedCounts.players}件\n回答: ${result.data.deleteAllData.deletedCounts.answers}件`)
+      // ホーム画面に戻る
+      onLeave()
+    } catch (err) {
+      console.error('deleteAllData error:', err)
+      if (err.errors) {
+        console.error('GraphQL errors:', err.errors)
+        err.errors.forEach((error, index) => {
+          console.error(`Error ${index + 1}:`, error.message, error)
+        })
+        setError(`データ削除に失敗しました: ${err.errors[0].message}`)
+      } else {
+        setError('データ削除に失敗しました')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!room) {
     return <div className="loading">ルーム情報を読み込み中...</div>
   }
@@ -226,8 +255,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
           {/* 待機画面 */}
           {room.state === 'WAITING' && (
             <div className="waiting-screen">
-              <div className="game-title">一緒するまで<br />終われまラン!!</div>
-              <div className="game-subtitle">全員の答えが10回一致するまでヤメちゃダメ</div>
+              <div className="game-title">一致させ<br />げーむ</div>
 
               {isHost ? (
                 <>
@@ -241,6 +269,14 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                   {room.players?.length < 2 && (
                     <p className="warning">※ 2人以上必要です</p>
                   )}
+                  <button
+                    onClick={deleteAllData}
+                    disabled={loading}
+                    className="black-button"
+                    style={{ backgroundColor: '#dc2626', marginTop: '2rem' }}
+                  >
+                    {loading ? '削除中...' : '全データ削除（開発用）'}
+                  </button>
                 </>
               ) : (
                 <p style={{ color: '#333', fontSize: '1.2rem' }}>

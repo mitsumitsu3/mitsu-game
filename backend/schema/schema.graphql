@@ -99,6 +99,21 @@ type Mutation {
 
   # ゲームを終了（ホストのみ）
   endGame(roomId: ID!): Room!
+
+  # 全データを削除（開発用）
+  deleteAllData: DeleteAllDataResponse!
+}
+
+type DeleteAllDataResponse {
+  success: Boolean!
+  message: String!
+  deletedCounts: DeletedCounts!
+}
+
+type DeletedCounts {
+  rooms: Int!
+  players: Int!
+  answers: Int!
 }
 
 # Queries

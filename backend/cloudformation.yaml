@@ -319,6 +319,15 @@ Resources:
       FieldName: endGame
       DataSourceName: !GetAtt LambdaDataSource.Name
 
+  DeleteAllDataResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: deleteAllData
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
   # Resolvers - Queries
   GetRoomResolver:
     Type: AWS::AppSync::Resolver
