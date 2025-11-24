@@ -57,6 +57,15 @@ export const START_JUDGING = `
   }
 `
 
+export const GENERATE_JUDGING_COMMENTS = `
+  mutation GenerateJudgingComments($roomId: ID!) {
+    generateJudgingComments(roomId: $roomId) {
+      roomId
+      judgedAt
+    }
+  }
+`
+
 export const JUDGE_ANSWERS = `
   mutation JudgeAnswers($roomId: ID!, $isMatch: Boolean!) {
     judgeAnswers(roomId: $roomId, isMatch: $isMatch) {

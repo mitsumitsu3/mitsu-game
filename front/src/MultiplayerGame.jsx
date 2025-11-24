@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import DrawingCanvas from './DrawingCanvas'
 import NicoComments from './NicoComments'
 import { GET_ROOM } from './graphql/queries'
-import { SUBMIT_ANSWER, START_JUDGING, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM } from './graphql/mutations'
+import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM } from './graphql/mutations'
 import './MultiplayerGame.css'
 
 const POLLING_INTERVAL = 3000 // 3秒ごとにポーリング
@@ -154,7 +154,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   }
 
   const judgeAnswers = async (isMatch) => {
-    setLoading(true)
     try {
       console.log('Judging answers:', { roomId, isMatch })
       const result = await callGraphQL(JUDGE_ANSWERS, { roomId, isMatch })
@@ -168,8 +167,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     } catch (err) {
       console.error('Failed to judge:', err)
       setError('判定に失敗しました')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -227,44 +224,39 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         </div>
 
         {/* メインコンテンツエリア */}
-        <div className="game-content" style={{ position: 'relative' }}>
+        <div className={`game-content ${
+          room.state === 'ANSWERING' ? 'blue-bg' : 'yellow-radial'
+        }`} style={{ position: 'relative' }}>
           {/* ニコニココメント表示（次のラウンドに進んでも流し続ける） */}
           {room.comments && room.comments.length > 0 && room.judgedAt && (
-            <NicoComments key={room.judgedAt} comments={room.comments} />
+            <NicoComments comments={room.comments} judgedAt={room.judgedAt} />
           )}
-
-          {/* プレイヤー情報 */}
-          <div className="players-info">
-            <h3>参加者 ({room.players?.length || 0}人)</h3>
-            <div className="players-list">
-              {room.players?.map(p => (
-                <div key={p.playerId} className="player-badge">
-                  {p.name} {p.role === 'HOST' && '👑'}
-                  {room.answers?.some(a => a.playerId === p.playerId) && ' ✓'}
-                </div>
-              ))}
-            </div>
-          </div>
 
           {error && <div className="error">{error}</div>}
 
           {/* 待機画面 */}
           {room.state === 'WAITING' && (
             <div className="waiting-screen">
-              <h2>待機中...</h2>
+              <div className="game-title">一緒するまで<br />終われまラン!!</div>
+              <div className="game-subtitle">全員の答えが10回一致するまでヤメちゃダメ</div>
+
               {isHost ? (
-                <button
-                  onClick={startGame}
-                  disabled={loading || room.players?.length < 2}
-                  className="primary-button"
-                >
-                  {loading ? 'お題を生成中...' : 'ゲーム開始'}
-                </button>
+                <>
+                  <button
+                    onClick={startGame}
+                    disabled={loading || room.players?.length < 2}
+                    className="black-button"
+                  >
+                    {loading ? 'お題を生成中...' : 'ゲーム開始'}
+                  </button>
+                  {room.players?.length < 2 && (
+                    <p className="warning">※ 2人以上必要です</p>
+                  )}
+                </>
               ) : (
-                <p>ホストがゲームを開始するまでお待ちください</p>
-              )}
-              {room.players?.length < 2 && (
-                <p className="warning">※ 2人以上必要です</p>
+                <p style={{ color: '#333', fontSize: '1.2rem' }}>
+                  ホストがゲームを開始するまでお待ちください
+                </p>
               )}
             </div>
           )}
@@ -272,92 +264,209 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
           {/* 回答入力画面 */}
           {room.state === 'ANSWERING' && (
             <div className="answering-screen">
-              <h2>お題</h2>
-              <div className="topic">{room.topic}</div>
-
               {!mySubmittedAnswer ? (
-                <div className="my-answer-section">
-                  <h3>あなたの回答</h3>
-                  <div className="answer-header">
-                    <div className="answer-type-buttons">
+                <>
+                  <div className="top-buttons">
+                    <button
+                      onClick={() => setMyAnswer({ ...myAnswer, text: '', drawing: null })}
+                      className="white-outline-button"
+                    >
+                      書き直す
+                    </button>
+                    <button
+                      onClick={submitAnswer}
+                      disabled={loading || (myAnswer.type === 'text' ? !myAnswer.text.trim() : !myAnswer.drawing)}
+                      className="white-outline-button"
+                    >
+                      {loading ? '提出中...' : '回答を送付'}
+                    </button>
+                  </div>
+
+                  {/* お題を表示 */}
+                  <div style={{
+                    color: 'white',
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    marginBottom: '1.5rem',
+                    textAlign: 'center'
+                  }}>
+                    {room.topic}
+                  </div>
+
+                  <div className="answer-display-area">
+                    {myAnswer.type === 'text' ? (
+                      <div className="answer-display-text">{myAnswer.text || '(入力してください)'}</div>
+                    ) : (
+                      <DrawingCanvas
+                        onDrawingComplete={(data) => setMyAnswer({ ...myAnswer, drawing: data })}
+                        initialData={myAnswer.drawing}
+                      />
+                    )}
+                  </div>
+
+                  <div className="answer-input-bottom">
+                    <div style={{ marginBottom: '1rem' }}>
                       <button
-                        className={`type-btn ${myAnswer.type === 'text' ? 'active' : ''}`}
+                        style={{
+                          backgroundColor: myAnswer.type === 'text' ? 'white' : 'transparent',
+                          color: myAnswer.type === 'text' ? '#0d47a1' : 'white',
+                          border: '2px solid white',
+                          padding: '0.5rem 2rem',
+                          marginRight: '1rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
                         onClick={() => setMyAnswer({ type: 'text', text: '', drawing: null })}
                       >
                         テキスト
                       </button>
                       <button
-                        className={`type-btn ${myAnswer.type === 'drawing' ? 'active' : ''}`}
+                        style={{
+                          backgroundColor: myAnswer.type === 'drawing' ? 'white' : 'transparent',
+                          color: myAnswer.type === 'drawing' ? '#0d47a1' : 'white',
+                          border: '2px solid white',
+                          padding: '0.5rem 2rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
                         onClick={() => setMyAnswer({ type: 'drawing', text: '', drawing: null })}
                       >
                         お絵描き
                       </button>
                     </div>
+                    {myAnswer.type === 'text' && (
+                      <input
+                        type="text"
+                        value={myAnswer.text}
+                        onChange={(e) => setMyAnswer({ ...myAnswer, text: e.target.value })}
+                        placeholder="キーボードで入力"
+                        style={{
+                          backgroundColor: 'transparent',
+                          border: 'none',
+                          borderBottom: '2px solid white',
+                          color: 'white',
+                          fontSize: '1.2rem',
+                          padding: '0.5rem',
+                          textAlign: 'center',
+                          width: '300px',
+                          outline: 'none'
+                        }}
+                      />
+                    )}
                   </div>
-
-                  {myAnswer.type === 'text' ? (
-                    <input
-                      type="text"
-                      value={myAnswer.text}
-                      onChange={(e) => setMyAnswer({ ...myAnswer, text: e.target.value })}
-                      placeholder="回答を入力"
-                      className="answer-input"
-                    />
-                  ) : (
-                    <DrawingCanvas
-                      onDrawingComplete={(data) => setMyAnswer({ ...myAnswer, drawing: data })}
-                      initialData={myAnswer.drawing}
-                    />
-                  )}
-
-                  <button
-                    onClick={submitAnswer}
-                    disabled={loading || (myAnswer.type === 'text' ? !myAnswer.text.trim() : !myAnswer.drawing)}
-                    className="primary-button"
-                  >
-                    {loading ? '提出中...' : '回答を提出'}
-                  </button>
-                </div>
+                </>
               ) : (
-                <div className="submitted-message">
-                  <p>✓ 回答を提出しました</p>
-                  <p>他のプレイヤーの回答を待っています... ({room.answers?.length}/{room.players?.length})</p>
-                </div>
-              )}
-
-              {isHost && allAnswered && (
-                <button
-                  onClick={async () => {
-                    try {
-                      await callGraphQL(START_JUDGING, { roomId })
-                      await fetchRoom()
-                    } catch (err) {
-                      console.error('Failed to start judging:', err)
-                    }
-                  }}
-                  className="primary-button"
-                >
-                  判定画面へ
-                </button>
+                <>
+                  <div className="submitted-message">
+                    <p>✓ 回答を提出しました</p>
+                    <p>他のプレイヤーの回答を待っています... ({room.answers?.length}/{room.players?.length})</p>
+                  </div>
+                  {isHost && allAnswered && (
+                    <button
+                      onClick={async () => {
+                        setLoading(true)
+                        try {
+                          // 判定画面に遷移（コメント生成は裏で非同期実行される）
+                          await callGraphQL(START_JUDGING, { roomId })
+                          await fetchRoom()
+                        } catch (err) {
+                          console.error('Failed to start judging:', err)
+                          setError('判定画面への移動に失敗しました')
+                        } finally {
+                          setLoading(false)
+                        }
+                      }}
+                      disabled={loading}
+                      className="black-button"
+                      style={{ marginTop: '2rem' }}
+                    >
+                      {loading ? '移動中...' : '判定画面へ'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
 
           {/* 判定画面 */}
-          {(() => {
-            const isJudging = room.state === 'JUDGING'
-            console.log('Judging screen check:', {
-              state: room.state,
-              isJudging,
-              roomData: room
-            })
-            return isJudging
-          })() && (
+          {room.state === 'JUDGING' && (
             <div className="judging-screen">
-              <h2>お題</h2>
-              <div className="topic">{room.topic}</div>
+              {/* コメント生成状態の表示（ホストのみ） */}
+              {isHost && (
+                <div style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: room.judgedAt ? '#4caf50' : '#ff9800',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  zIndex: 100
+                }}>
+                  {!room.judgedAt ? (
+                    <>
+                      <div style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '3px solid white',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      <span>コメント生成中...</span>
+                      <style>{`
+                        @keyframes spin {
+                          to { transform: rotate(360deg); }
+                        }
+                      `}</style>
+                    </>
+                  ) : (
+                    <>
+                      <span>✓</span>
+                      <span>コメント生成完了</span>
+                    </>
+                  )}
+                </div>
+              )}
 
-              <h2>みんなの回答</h2>
+              {!room.lastJudgeResult && room.lastJudgeResult !== false && (
+                <div className="judge-instruction">
+                  全員一致か、不一致を選択して次の問題へ
+                </div>
+              )}
+
+              {(() => {
+                const shouldShowButtons = isHost && !room.lastJudgeResult && room.lastJudgeResult !== false
+                return shouldShowButtons ? (
+                  <div className="judge-buttons">
+                    <button
+                      onClick={() => judgeAnswers(true)}
+                      className="black-button"
+                    >
+                      全員一致
+                    </button>
+                    <button
+                      onClick={() => judgeAnswers(false)}
+                      className="black-button"
+                    >
+                      全員不一致
+                    </button>
+                  </div>
+                ) : null
+              })()}
+
+              <div className="topic-display">
+                {room.topic}
+              </div>
+
               <div className="answers-grid">
                 {room.answers?.map(answer => (
                   <div key={answer.answerId} className="answer-card">
@@ -377,39 +486,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                 ))}
               </div>
 
-              {(() => {
-                const shouldShowButtons = isHost && !room.lastJudgeResult && room.lastJudgeResult !== false
-                console.log('Judge buttons check:', {
-                  isHost,
-                  lastJudgeResult: room.lastJudgeResult,
-                  shouldShowButtons
-                })
-                return shouldShowButtons ? (
-                  <div className="judge-buttons">
-                    <button
-                      onClick={() => {
-                        console.log('Judge button clicked!')
-                        judgeAnswers(true)
-                      }}
-                      disabled={loading}
-                      className="success-button"
-                    >
-                      {loading ? 'コメント生成中...' : '一致している！'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        console.log('Judge button clicked!')
-                        judgeAnswers(false)
-                      }}
-                      disabled={loading}
-                      className="fail-button"
-                    >
-                      {loading ? 'コメント生成中...' : '一致していない'}
-                    </button>
-                  </div>
-                ) : null
-              })()}
-
               {(room.lastJudgeResult === true || room.lastJudgeResult === false) && (
                 <div>
                   <div className="judge-result">
@@ -424,19 +500,23 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                       <button
                         onClick={nextRound}
                         disabled={loading}
-                        className="primary-button"
+                        className="black-button"
                       >
                         {loading ? '次のお題を生成中...' : '次へ'}
                       </button>
                       <button
                         onClick={endGame}
-                        className="secondary-button"
+                        className="black-button"
                       >
                         終了
                       </button>
                     </div>
                   )}
-                  {!isHost && <p>ホストが次のラウンドを開始するまでお待ちください</p>}
+                  {!isHost && (
+                    <p style={{ color: '#333', fontSize: '1.1rem', marginTop: '1rem' }}>
+                      ホストが次のラウンドを開始するまでお待ちください
+                    </p>
+                  )}
                 </div>
               )}
             </div>

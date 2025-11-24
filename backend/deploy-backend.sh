@@ -16,11 +16,19 @@ PROJECT_NAME="${PROJECT_NAME:-mitsu-game}"
 AWS_REGION="${AWS_REGION:-ap-northeast-1}"
 S3_BUCKET="${S3_BUCKET:-mitsu-game-deploy-${AWS_REGION}}"
 
+# OpenAI API Keyの確認
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo -e "${RED}エラー: OPENAI_API_KEY 環境変数が設定されていません${NC}"
+  echo "export OPENAI_API_KEY='your-api-key-here' を実行してから再度デプロイしてください"
+  exit 1
+fi
+
 echo -e "${BLUE}=== バックエンドのデプロイ ===${NC}"
 echo "Stack Name: $STACK_NAME"
 echo "Project Name: $PROJECT_NAME"
 echo "Region: $AWS_REGION"
 echo "S3 Bucket: $S3_BUCKET"
+echo "OpenAI API Key: ${OPENAI_API_KEY:0:10}..." # 最初の10文字だけ表示
 echo ""
 
 # S3バケットの作成（存在しない場合）
@@ -60,6 +68,7 @@ aws cloudformation deploy \
   --parameter-overrides \
     ProjectName="$PROJECT_NAME" \
     DeployBucket="$S3_BUCKET" \
+    OpenAIApiKey="$OPENAI_API_KEY" \
   --capabilities CAPABILITY_NAMED_IAM \
   --region "$AWS_REGION" \
   --no-fail-on-empty-changeset

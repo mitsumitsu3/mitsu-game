@@ -5,7 +5,6 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #242424;
 }
 
 .game-screen {
@@ -29,8 +28,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #1a1a1a;
-  border-bottom: 2px solid #333;
+  background-color: #c62828;
+  color: white;
   padding: 1rem 1.5rem;
   flex-shrink: 0;
 }
@@ -74,9 +73,25 @@
 .game-content {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
+}
+
+/* 黄色の放射状ストライプ背景 (お題表示・判定画面) */
+.game-content.yellow-radial {
+  background:
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      #ffd700 0deg 2deg,
+      #ffed4e 2deg 4deg
+    ),
+    linear-gradient(135deg, #ffd700, #ffed4e);
+}
+
+/* 青い背景 (回答画面) */
+.game-content.blue-bg {
+  background-color: #0d47a1;
 }
 
 .players-info {
@@ -125,48 +140,263 @@
 .waiting-screen {
   text-align: center;
   padding: 2rem 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
-.waiting-screen h2 {
-  font-size: 2rem;
+.waiting-screen .game-title {
+  font-size: 4rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  margin: 2rem 0 1rem;
+  text-shadow: 3px 3px 0px rgba(255,255,255,0.3);
+  line-height: 1.2;
+}
+
+.waiting-screen .game-subtitle {
+  font-size: 1.2rem;
+  color: #333;
   margin-bottom: 2rem;
 }
 
-.waiting-screen .warning {
-  color: #f59e0b;
-  margin-top: 1rem;
+.topic-box {
+  background-color: white;
+  border-radius: 16px;
+  padding: 2rem 3rem;
+  margin: 2rem auto;
+  max-width: 700px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
 }
 
-.my-answer-section {
-  background-color: #1a1a1a;
-  border: 2px solid #444;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-.my-answer-section h3 {
+.topic-box h3 {
+  font-size: 1rem;
+  color: #666;
   margin: 0 0 1rem 0;
 }
 
-.answer-input {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.2rem;
-  border-radius: 8px;
-  border: 2px solid #444;
-  background-color: #2a2a2a;
-  color: #fff;
-  margin-bottom: 1rem;
+.topic-box .topic {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin: 0;
+  line-height: 1.6;
 }
 
-.answer-input:focus {
-  outline: none;
-  border-color: #646cff;
+.black-button {
+  background-color: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 1rem 3rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 0.5rem;
+}
+
+.black-button:hover:not(:disabled) {
+  background-color: #333;
+  transform: translateY(-2px);
+}
+
+.black-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiting-screen .warning {
+  color: #c62828;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+/* 回答画面 */
+.answering-screen {
+  background-color: #0d47a1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem;
+}
+
+.answering-screen .top-buttons {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 2rem;
+}
+
+.white-outline-button {
+  flex: 1;
+  background-color: transparent;
+  color: white;
+  border: 3px solid white;
+  border-radius: 8px;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.white-outline-button:hover:not(:disabled) {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.white-outline-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.answer-display-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 2rem 0;
+}
+
+.answer-display-text {
+  font-size: 5rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  word-break: break-all;
+}
+
+.answer-input-bottom {
+  color: white;
+  font-size: 1.2rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* 判定画面 */
+.judging-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+
+.judging-screen .judge-instruction {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.judging-screen .judge-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.judging-screen .topic-display {
+  font-size: 1.3rem;
+  color: #1a1a1a;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+.answers-grid {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem 0;
+}
+
+.answer-card {
+  background-color: #0d47a1;
+  border-radius: 12px;
+  padding: 2rem;
+  min-width: 300px;
+  flex: 1;
+  max-width: 400px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.answer-card-header {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.answer-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+}
+
+.answer-text {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  word-break: break-all;
+}
+
+.answer-drawing-preview {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.answer-drawing-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+}
+
+.judge-result {
+  background-color: rgba(255,255,255,0.9);
+  border-radius: 12px;
+  padding: 1.5rem 3rem;
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.success-message {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #22c55e;
+  margin: 0;
+}
+
+.fail-message {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ef4444;
+  margin: 0;
+}
+
+.next-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .submitted-message {
-  background-color: #1a2a1a;
-  border: 2px solid #4ade80;
+  background-color: rgba(255,255,255,0.9);
+  border: 3px solid #4ade80;
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
@@ -175,12 +405,12 @@
 .submitted-message p:first-child {
   font-size: 1.3rem;
   font-weight: bold;
-  color: #4ade80;
+  color: #22c55e;
   margin-bottom: 0.5rem;
 }
 
 .submitted-message p:last-child {
-  color: #999;
+  color: #666;
   margin: 0;
 }
 

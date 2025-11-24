@@ -40,6 +40,8 @@ exports.handler = async (event) => {
         return await submitAnswer(args);
       case 'startJudging':
         return await startJudging(args);
+      case 'generateJudgingComments':
+        return await generateJudgingComments(args);
       case 'judgeAnswers':
         console.log('Calling judgeAnswers with:', args);
         const result = await judgeAnswers(args);
@@ -173,27 +175,46 @@ async function generateTopics(usedTopics = []) {
         {
           role: 'system',
           content: '「認識合わせゲーム」のお題を10個生成してください。このゲームは参加者全員が同じ答えを思いつくことが目標です。\n\n' +
-                   '【重要】お題は「〇〇といえば？」という形式で、カテゴリを限定して答えが1つか2つに収束しやすいものにしてください。\n\n' +
-                   '良い例：\n' +
-                   '- 「日本の国民食といえば？」→ カレー、ラーメンなど（収束しやすい）\n' +
-                   '- 「春の代表的な花といえば？」→ 桜（ほぼ一致）\n' +
-                   '- 「朝食の定番といえば？」→ ご飯、パン、味噌汁など\n' +
-                   '- 「夏の定番飲み物といえば？」→ 麦茶、ビールなど\n' +
-                   '- 「お正月の食べ物といえば？」→ おせち、お雑煮など\n\n' +
-                   '悪い例（範囲が広すぎて答えがバラバラになる）：\n' +
-                   '- 「春といえば？」→ 桜、花見、卒業、入学式、暖かい...（答えが発散）\n' +
-                   '- 「旅行といえば？」→ 範囲が広すぎる\n' +
-                   '- 「寒いといえば？」→ 抽象的すぎる\n\n' +
-                   (usedTopics.length > 0 ? `以下のお題はすでに使用済みなので、これらと重複しないようにしてください：\n${usedTopics.join('\n')}\n\n` : '') +
+                   '【重要ルール】答えが1〜3個に収束する、具体的だが一般的なお題を作ること。\n\n' +
+                   '【良いお題の例】（実際のゲームから）：\n' +
+                   '- 「真夏のスポーツの定番といえば？」→ 野球、海水浴など\n' +
+                   '- 「金持ちの家にある定番の物といえば？」→ プール、シアタールームなど\n' +
+                   '- 「スーパーカーのメーカーといえば？」→ フェラーリ、ランボルギーニなど\n' +
+                   '- 「卵を使った料理の定番といえば？」→ 卵焼き、目玉焼きなど\n' +
+                   '- 「志村けんのギャグといえば？」→ アイーン、だっふんだなど\n' +
+                   '- 「正月の遊びの定番といえば？」→ 凧揚げ、羽根つきなど\n' +
+                   '- 「ホームセンターの定番といえば？」→ カインズ、コーナンなど\n' +
+                   '- 「ピンクの服を着ている芸能人といえば？」→ ブルゾンちえみなど\n' +
+                   '- 「コンビニで必ず売っている飲み物といえば？」→ お茶、コーヒーなど\n' +
+                   '- 「日本一有名なお城といえば？」→ 姫路城、大阪城など\n' +
+                   '- 「小学校の給食の定番メニューといえば？」→ カレー、揚げパンなど\n\n' +
+                   '【お題の作り方】：\n' +
+                   '1. カテゴリを1つ決める（場所、食べ物、人物、企業など）\n' +
+                   '2. 「定番」「有名」「代表的」などで限定する\n' +
+                   '3. 誰もが知ってる一般的な範囲に収める\n' +
+                   '4. 固有名詞を指定する場合は明確に1人/1つに絞る（志村けん、ディズニーランドなど）\n\n' +
+                   '【絶対NGな例】：\n' +
+                   '❌ 「有名アーティストの代表曲といえば？」→ どのアーティスト？答えが発散\n' +
+                   '❌ 「人気アニメのキャラクターといえば？」→ どのアニメ？答えが発散\n' +
+                   '❌ 「有名大学の学部といえば？」→ どの大学？答えが発散\n' +
+                   '❌ 「一押しのレストランのメニューといえば？」→ どのレストラン？答えが発散\n' +
+                   '❌ 「春といえば？」「夏といえば？」→ 抽象的すぎる\n' +
+                   '❌ 「日本の四季といえば？」→ 抽象的すぎる\n\n' +
+                   '【OK例】：\n' +
+                   '✅ 「ファミレスの定番メニューといえば？」→ ハンバーグ、パスタなど（カテゴリ全体）\n' +
+                   '✅ 「ドラえもんの道具の定番といえば？」→ タケコプター、どこでもドアなど（固有名詞を明確に指定）\n' +
+                   '✅ 「回転寿司の人気ネタといえば？」→ サーモン、マグロなど（カテゴリ全体）\n' +
+                   '✅ 「冬のスポーツの定番といえば？」→ スキー、スノボなど（季節×カテゴリ）\n\n' +
+                   (usedTopics.length > 0 ? `【使用済みのお題】（これらと重複しないこと）：\n${usedTopics.join('\n')}\n\n` : '') +
                    '各お題を改行で区切って出力してください。番号や記号は付けないでください。'
         },
         {
           role: 'user',
-          content: 'カテゴリを限定した、答えが収束しやすいお題を10個出してください。'
+          content: '誰もが知ってる一般的な範囲で、答えが1〜3個に収束するお題を10個生成してください。「有名〇〇の△△」のような二段階限定は避けてください。'
         }
       ],
-      temperature: 0.8,
-      max_tokens: 500
+      temperature: 0.9,
+      max_tokens: 600
     })
   });
 
@@ -290,10 +311,11 @@ async function submitAnswer({ roomId, playerId, answerType, textAnswer, drawingD
   return answer;
 }
 
-// 判定画面に遷移
+// 判定画面に遷移（コメント生成を非同期で開始）
 async function startJudging({ roomId }) {
   const now = new Date().toISOString();
 
+  // 判定画面に即座に遷移
   await ddb.send(new UpdateCommand({
     TableName: ROOM_TABLE,
     Key: { roomId },
@@ -308,7 +330,51 @@ async function startJudging({ roomId }) {
     },
   }));
 
+  // コメント生成を非同期で開始（待たない）
+  generateJudgingComments({ roomId }).catch(err => {
+    console.error('Failed to generate comments:', err);
+  });
+
   return await getRoom({ roomId });
+}
+
+// コメント生成（非同期で呼び出される）
+async function generateJudgingComments({ roomId }) {
+  const now = new Date().toISOString();
+
+  // ルーム情報と回答を取得
+  const room = await getRoom({ roomId });
+  if (!room) {
+    throw new Error('Room not found');
+  }
+
+  // コメントを生成
+  console.log('Generating comments asynchronously...');
+  const comments = await generateComments(room.topic, room.answers);
+  console.log('Generated comments:', comments.length);
+
+  // コメントを保存
+  await ddb.send(new UpdateCommand({
+    TableName: ROOM_TABLE,
+    Key: { roomId },
+    UpdateExpression: 'SET #comments = :comments, #judgedAt = :judgedAt, #updatedAt = :updatedAt',
+    ExpressionAttributeNames: {
+      '#comments': 'comments',
+      '#judgedAt': 'judgedAt',
+      '#updatedAt': 'updatedAt',
+    },
+    ExpressionAttributeValues: {
+      ':comments': comments,
+      ':judgedAt': now,
+      ':updatedAt': now,
+    },
+  }));
+
+  return {
+    roomId,
+    comments,
+    judgedAt: now,
+  };
 }
 
 // GPT-4 Visionでニコニコ風コメント生成
@@ -330,8 +396,9 @@ async function generateComments(topic, answers) {
             `【重要】必ず全員（${playerNames}）に対するコメントを含めること。\n\n` +
             `コメントの特徴:\n` +
             `- 短く簡潔（5〜15文字程度）\n` +
-            `- 各プレイヤーに対して様々な角度からコメント（共感、ツッコミ、驚き、ボケなど）\n` +
+            `- 各プレイヤーに対して様々な角度からコメント（共感、ツッコミ、驚き、大喜利、ボケなど）\n` +
             `- 「www」「草」「それな」「やばい」などネットスラング多用\n` +
+            `- 「www」は多用しすぎない程度に使用する\n` +
             `- 似たようなコメントは避け、バリエーションを持たせる\n` +
             `- 絵の回答には絵の具体的な内容や特徴に言及する\n` +
             `- 全員の回答を比較するコメントも含める\n\n` +
@@ -403,44 +470,27 @@ async function generateComments(topic, answers) {
   return comments;
 }
 
-// 判定
+// 判定（コメントは既に生成済み）
 async function judgeAnswers({ roomId, isMatch }) {
   console.log('judgeAnswers function called with:', { roomId, isMatch });
   const now = new Date().toISOString();
 
-  // ルーム情報と回答を取得
-  const room = await getRoom({ roomId });
-  if (!room) {
-    throw new Error('Room not found');
-  }
-
-  // コメントを生成
-  console.log('Generating comments...');
-  const comments = await generateComments(room.topic, room.answers);
-  console.log('Generated comments:', comments.length);
-
-  // 判定結果とコメントをRoomに保存
-  console.log('About to update DynamoDB with:', {
+  // 判定結果だけをRoomに保存（コメントは既にstartJudgingで生成済み）
+  console.log('Updating judgment result:', {
     roomId,
-    lastJudgeResult: isMatch,
-    judgedAt: now,
-    commentsCount: comments.length
+    lastJudgeResult: isMatch
   });
 
   await ddb.send(new UpdateCommand({
     TableName: ROOM_TABLE,
     Key: { roomId },
-    UpdateExpression: 'SET #lastJudgeResult = :lastJudgeResult, #judgedAt = :judgedAt, #comments = :comments, #updatedAt = :updatedAt',
+    UpdateExpression: 'SET #lastJudgeResult = :lastJudgeResult, #updatedAt = :updatedAt',
     ExpressionAttributeNames: {
       '#lastJudgeResult': 'lastJudgeResult',
-      '#judgedAt': 'judgedAt',
-      '#comments': 'comments',
       '#updatedAt': 'updatedAt',
     },
     ExpressionAttributeValues: {
       ':lastJudgeResult': isMatch,
-      ':judgedAt': now,
-      ':comments': comments,
       ':updatedAt': now,
     },
   }));

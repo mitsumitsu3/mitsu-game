@@ -88,6 +88,9 @@ type Mutation {
   # 判定画面に遷移（ホストのみ）
   startJudging(roomId: ID!): Room!
 
+  # 判定用コメントを非同期生成（ホストのみ）
+  generateJudgingComments(roomId: ID!): JudgeResult!
+
   # 判定を実行（ホストのみ）
   judgeAnswers(roomId: ID!, isMatch: Boolean!): JudgeResult!
 

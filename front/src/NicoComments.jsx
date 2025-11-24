@@ -1,19 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 import './NicoComments.css'
 
-function NicoComments({ comments }) {
+function NicoComments({ comments, judgedAt }) {
   const [activeComments, setActiveComments] = useState([])
+  const [isPlaying, setIsPlaying] = useState(false)
+  const intervalRef = useRef(null)
 
+  // judgedAtが変わったときに新しいコメント再生を開始
   useEffect(() => {
-    console.log('NicoComments mounted! Displaying', comments.length, 'comments')
-
-    if (!comments || comments.length === 0) {
+    if (!comments || comments.length === 0 || !judgedAt) {
       return
     }
 
-    // コメントを順次表示（マウント時に一度だけ実行）
+    console.log('Starting new comment stream for judgedAt:', judgedAt, 'comments:', comments.length)
+
+    // 既存の再生中のコメント表示は継続（activeCommentsはクリアしない）
+    // 新しいコメント再生を開始
+    setIsPlaying(true)
     let commentIndex = 0
-    const interval = setInterval(() => {
+
+    intervalRef.current = setInterval(() => {
       if (commentIndex < comments.length) {
         const newComment = {
           id: Date.now() + commentIndex,
@@ -23,14 +29,19 @@ function NicoComments({ comments }) {
         setActiveComments(prev => [...prev, newComment])
         commentIndex++
       } else {
-        // すべてのコメントを表示したら停止（ループしない）
+        // すべてのコメントを表示したら停止
         console.log('All comments displayed')
-        clearInterval(interval)
+        clearInterval(intervalRef.current)
+        setIsPlaying(false)
       }
     }, 1000) // 1秒ごとに1つずつ表示（30個なら30秒で全表示）
 
-    return () => clearInterval(interval)
-  }, []) // 空の依存配列 = マウント時に一度だけ実行
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [judgedAt]) // judgedAtが変わったときのみ実行
 
   // 古いコメントを削除（アニメーション終了後）
   useEffect(() => {

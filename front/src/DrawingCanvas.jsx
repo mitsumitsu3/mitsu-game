@@ -21,8 +21,8 @@ function DrawingCanvas({ onDrawingComplete, initialData = null }) {
       }
       img.src = initialData
     } else {
-      // キャンバスを白で初期化
-      ctx.fillStyle = '#1a1a1a'
+      // キャンバスを青で初期化
+      ctx.fillStyle = '#0d47a1'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
   }, [initialData])
@@ -69,7 +69,7 @@ function DrawingCanvas({ onDrawingComplete, initialData = null }) {
   const clearCanvas = () => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#1a1a1a'
+    ctx.fillStyle = '#0d47a1'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     onDrawingComplete(null)
   }

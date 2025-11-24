@@ -11,6 +11,11 @@ Parameters:
     Type: String
     Description: S3 bucket containing deployment artifacts
 
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenAI API Key for topic and comment generation
+
 Resources:
   # DynamoDB Tables
 
@@ -209,6 +214,7 @@ Resources:
           ROOM_TABLE: !Ref RoomTable
           PLAYER_TABLE: !Ref PlayerTable
           ANSWER_TABLE: !Ref AnswerTable
+          OPENAI_API_KEY: !Ref OpenAIApiKey
       Timeout: 30
 
   # Lambda Data Source
@@ -225,6 +231,7 @@ Resources:
   # Resolvers - Mutations
   CreateRoomResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -233,6 +240,7 @@ Resources:
 
   JoinRoomResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -241,22 +249,25 @@ Resources:
 
   LeaveRoomResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
       FieldName: leaveRoom
       DataSourceName: !GetAtt LambdaDataSource.Name
 
-  GenerateTopicResolver:
+  StartGameResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
-      FieldName: generateTopic
+      FieldName: startGame
       DataSourceName: !GetAtt LambdaDataSource.Name
 
   SubmitAnswerResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -265,14 +276,25 @@ Resources:
 
   StartJudgingResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
       FieldName: startJudging
       DataSourceName: !GetAtt LambdaDataSource.Name
 
+  GenerateJudgingCommentsResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: generateJudgingComments
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
   JudgeAnswersResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -281,6 +303,7 @@ Resources:
 
   NextRoundResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -289,6 +312,7 @@ Resources:
 
   EndGameResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Mutation
@@ -298,6 +322,7 @@ Resources:
   # Resolvers - Queries
   GetRoomResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
@@ -306,6 +331,7 @@ Resources:
 
   GetRoomByCodeResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
@@ -314,6 +340,7 @@ Resources:
 
   ListPlayersResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
@@ -322,6 +349,7 @@ Resources:
 
   ListAnswersResolver:
     Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
