@@ -27,29 +27,57 @@ function DrawingCanvas({ onDrawingComplete, initialData = null }) {
     }
   }, [initialData])
 
-  const startDrawing = (e) => {
+  const getCoordinates = (e) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
+
+    // キャンバスの実際のサイズと表示サイズの比率を計算
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+
+    let clientX, clientY
+
+    // タッチイベントの場合
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX
+      clientY = e.touches[0].clientY
+    } else {
+      // マウスイベントの場合
+      clientX = e.clientX
+      clientY = e.clientY
+    }
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    }
+  }
+
+  const startDrawing = (e) => {
+    e.preventDefault() // スクロール防止
+    const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
+    const coords = getCoordinates(e)
 
     ctx.beginPath()
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
+    ctx.moveTo(coords.x, coords.y)
     setIsDrawing(true)
   }
 
   const draw = (e) => {
     if (!isDrawing) return
+    e.preventDefault() // スクロール防止
 
     const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
     const ctx = canvas.getContext('2d')
+    const coords = getCoordinates(e)
 
     ctx.strokeStyle = color
     ctx.lineWidth = lineWidth
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
 
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
+    ctx.lineTo(coords.x, coords.y)
     ctx.stroke()
   }
 
@@ -144,6 +172,9 @@ function DrawingCanvas({ onDrawingComplete, initialData = null }) {
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
       />
     </div>
   )
