@@ -212,17 +212,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   return (
     <div className="multiplayer-game">
       <div className="game-screen">
-        {/* ヘッダー */}
-        <div className="game-header">
-          <div className="room-info">
-            <h2>ルームコード: <span className="room-code">{room.roomCode}</span></h2>
-            <p>あなた: {playerName} {isHost && '(ホスト)'}</p>
-          </div>
-          <button className="leave-button" onClick={handleLeave}>
-            退出
-          </button>
-        </div>
-
         {/* メインコンテンツエリア */}
         <div className={`game-content ${
           room.state === 'ANSWERING' ? 'blue-bg' : 'yellow-radial'
@@ -521,6 +510,17 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* フッター（旧ヘッダー） */}
+        <div className="game-footer">
+          <div className="room-info">
+            <h2>ルームコード: <span className="room-code">{room.roomCode}</span></h2>
+            <p>あなた: {playerName} {isHost && '(ホスト)'}</p>
+          </div>
+          <button className="leave-button" onClick={handleLeave}>
+            退出
+          </button>
         </div>
       </div>
 
