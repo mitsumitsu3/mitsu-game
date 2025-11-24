@@ -1,0 +1,346 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AppSync backend for Mitsu Game'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: mitsu-game
+    Description: Project name
+
+Resources:
+  # DynamoDB Tables
+
+  # ルームテーブル
+  RoomTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-rooms'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: roomId
+          AttributeType: S
+        - AttributeName: roomCode
+          AttributeType: S
+      KeySchema:
+        - AttributeName: roomId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: roomCode-index
+          KeySchema:
+            - AttributeName: roomCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-rooms'
+
+  # プレイヤーテーブル
+  PlayerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-players'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: playerId
+          AttributeType: S
+        - AttributeName: roomId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: playerId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: roomId-index
+          KeySchema:
+            - AttributeName: roomId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-players'
+
+  # 回答テーブル
+  AnswerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-answers'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: answerId
+          AttributeType: S
+        - AttributeName: roomId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: answerId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: roomId-index
+          KeySchema:
+            - AttributeName: roomId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-answers'
+
+  # AppSync API
+  AppSyncApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub '${ProjectName}-api'
+      AuthenticationType: API_KEY
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-api'
+
+  # API Key
+  AppSyncApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Description: API Key for Mitsu Game
+      Expires: !Ref AWS::NoValue  # 永続的
+
+  # GraphQL Schema
+  AppSyncSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DefinitionS3Location: s3://mitsu-game-deploy-ap-northeast-1/schema.graphql
+
+  # DynamoDB Data Sources
+  RoomDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: RoomTable
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref RoomTable
+        AwsRegion: !Ref AWS::Region
+
+  PlayerDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: PlayerTable
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref PlayerTable
+        AwsRegion: !Ref AWS::Region
+
+  AnswerDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: AnswerTable
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref AnswerTable
+        AwsRegion: !Ref AWS::Region
+
+  # IAM Role for AppSync
+  AppSyncServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-appsync-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: AppSyncLambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource: !GetAtt ResolverFunction.Arn
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:*'
+                Resource: '*'
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-lambda-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+
+  # Lambda Resolver Function
+  ResolverFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-resolver'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code: s3://mitsu-game-deploy-ap-northeast-1/lambda-function.zip
+      Environment:
+        Variables:
+          ROOM_TABLE: !Ref RoomTable
+          PLAYER_TABLE: !Ref PlayerTable
+          ANSWER_TABLE: !Ref AnswerTable
+      Timeout: 30
+
+  # Lambda Data Source
+  LambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: LambdaResolver
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt ResolverFunction.Arn
+
+  # Resolvers - Mutations
+  CreateRoomResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: createRoom
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  JoinRoomResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: joinRoom
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  LeaveRoomResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: leaveRoom
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  GenerateTopicResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: generateTopic
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  SubmitAnswerResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: submitAnswer
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  JudgeAnswersResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: judgeAnswers
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  NextRoundResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: nextRound
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  EndGameResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: endGame
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  # Resolvers - Queries
+  GetRoomResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Query
+      FieldName: getRoom
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  GetRoomByCodeResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Query
+      FieldName: getRoomByCode
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  ListPlayersResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Query
+      FieldName: listPlayers
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+  ListAnswersResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Query
+      FieldName: listAnswers
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
+Outputs:
+  GraphQLApiEndpoint:
+    Description: GraphQL API Endpoint
+    Value: !GetAtt AppSyncApi.GraphQLUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-GraphQLEndpoint'
+
+  GraphQLApiId:
+    Description: GraphQL API ID
+    Value: !GetAtt AppSyncApi.ApiId
+    Export:
+      Name: !Sub '${AWS::StackName}-GraphQLApiId'
+
+  ApiKey:
+    Description: API Key
+    Value: !GetAtt AppSyncApiKey.ApiKey
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiKey'
+
+  RoomTableName:
+    Description: Room Table Name
+    Value: !Ref RoomTable
+
+  PlayerTableName:
+    Description: Player Table Name
+    Value: !Ref PlayerTable
+
+  AnswerTableName:
+    Description: Answer Table Name
+    Value: !Ref AnswerTable

@@ -1,0 +1,122 @@
+# ルーム情報
+type Room {
+  roomId: ID!
+  roomCode: String!
+  hostId: ID!
+  state: GameState!
+  topic: String
+  topicsPool: [String!]!      # 未使用のお題リスト
+  usedTopics: [String!]!      # 使用済みのお題リスト
+  lastJudgeResult: Boolean
+  judgedAt: AWSDateTime
+  comments: [String!]          # ニコニコ風コメントリスト（オプショナル）
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  players: [Player!]!
+  answers: [Answer!]!
+}
+
+# ゲーム状態
+enum GameState {
+  WAITING    # プレイヤー待機中
+  ANSWERING  # 回答入力中
+  JUDGING    # 判定中
+}
+
+# プレイヤー情報
+type Player {
+  playerId: ID!
+  roomId: ID!
+  name: String!
+  role: PlayerRole!
+  connected: Boolean!
+  joinedAt: AWSDateTime!
+}
+
+enum PlayerRole {
+  HOST
+  PLAYER
+}
+
+# 回答情報
+type Answer {
+  answerId: ID!
+  roomId: ID!
+  playerId: ID!
+  playerName: String!
+  answerType: AnswerType!
+  textAnswer: String
+  drawingData: String  # Base64エンコードされた画像
+  submittedAt: AWSDateTime!
+}
+
+enum AnswerType {
+  TEXT
+  DRAWING
+}
+
+# 判定結果
+type JudgeResult {
+  roomId: ID!
+  isMatch: Boolean!
+  judgedAt: AWSDateTime!
+}
+
+# Mutations
+type Mutation {
+  # ルームを作成（ホスト用）
+  createRoom(hostName: String!): Room!
+
+  # ルームに参加（プレイヤー用）
+  joinRoom(roomCode: String!, playerName: String!): Player!
+
+  # ルームから退出
+  leaveRoom(roomId: ID!, playerId: ID!): Boolean!
+
+  # ゲームを開始（ホストのみ）- お題プールを生成してゲーム開始
+  startGame(roomId: ID!): Room!
+
+  # 回答を提出
+  submitAnswer(
+    roomId: ID!
+    playerId: ID!
+    answerType: AnswerType!
+    textAnswer: String
+    drawingData: String
+  ): Answer!
+
+  # 判定画面に遷移（ホストのみ）
+  startJudging(roomId: ID!): Room!
+
+  # 判定を実行（ホストのみ）
+  judgeAnswers(roomId: ID!, isMatch: Boolean!): JudgeResult!
+
+  # 次のラウンドへ（ホストのみ）
+  nextRound(roomId: ID!): Room!
+
+  # ゲームを終了（ホストのみ）
+  endGame(roomId: ID!): Room!
+}
+
+# Queries
+type Query {
+  # ルーム情報を取得
+  getRoom(roomId: ID!): Room
+
+  # ルームコードからルームを取得
+  getRoomByCode(roomCode: String!): Room
+
+  # プレイヤー一覧を取得
+  listPlayers(roomId: ID!): [Player!]!
+
+  # 回答一覧を取得
+  listAnswers(roomId: ID!): [Answer!]!
+}
+
+# Subscriptions - ポーリングベースに変更（Lambda Resolverとの互換性のため）
+# フロントエンド側で定期的にgetRoomをクエリすることで同期を実現
+
+schema {
+  query: Query
+  mutation: Mutation
+}

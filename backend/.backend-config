@@ -1,0 +1,4 @@
+# バックエンド設定ファイル（フロントエンドで使用）
+export GRAPHQL_ENDPOINT="https://dx3pehinwbd2dhpcybjexdv5fa.appsync-api.ap-northeast-1.amazonaws.com/graphql"
+export API_KEY="da2-6eprjayijjcm3lnbh43pxfguze"
+export AWS_REGION="ap-northeast-1"

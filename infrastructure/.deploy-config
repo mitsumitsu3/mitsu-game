@@ -1,0 +1,6 @@
+# デプロイ設定ファイル（deploy-frontend.sh で使用）
+export STACK_NAME="mitsu-game-stack"
+export BUCKET_NAME="mitsu-game-spa-633307319965"
+export DISTRIBUTION_ID="E2EXHV8AW0PPVY"
+export WEBSITE_URL="https://d2uoh1cjwk5po6.cloudfront.net"
+export AWS_REGION="ap-northeast-1"

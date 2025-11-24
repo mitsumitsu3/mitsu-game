@@ -1,0 +1,142 @@
+.multiplayer-lobby {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.multiplayer-lobby h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+}
+
+.lobby-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.lobby-button {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 3px solid #444;
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.lobby-button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+}
+
+.lobby-button.create-button:hover {
+  border-color: #646cff;
+}
+
+.lobby-button.join-button:hover {
+  border-color: #4ade80;
+}
+
+.button-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.lobby-button h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.lobby-button p {
+  color: #999;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.lobby-form {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  color: #999;
+  text-align: left;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  border: 2px solid #444;
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.form-group input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.room-code-input {
+  text-transform: uppercase;
+  font-family: monospace;
+  letter-spacing: 0.2rem;
+  text-align: center;
+  font-size: 1.5rem !important;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.form-buttons button {
+  flex: 1;
+}
+
+.back-button {
+  width: 100%;
+  padding: 0.8rem;
+  background-color: transparent;
+  border: 2px solid #444;
+  border-radius: 8px;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-button:hover {
+  background-color: #2a2a2a;
+  border-color: #555;
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .lobby-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+}

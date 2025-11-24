@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+front/node_modules/
+backend/lambda/node_modules/
+
+# Environment variables
+.env
+front/.env
+backend/lambda/.env
+
+# Build outputs
+front/dist/
+front/build/
+
+# Lambda deployment packages
+*.zip
+backend/lambda/*.zip
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# AWS
+.aws/

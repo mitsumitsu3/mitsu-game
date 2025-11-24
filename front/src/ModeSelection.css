@@ -1,0 +1,69 @@
+.mode-selection {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.mode-selection h2 {
+  text-align: center;
+  margin-bottom: 3rem;
+  font-size: 2rem;
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.mode-button {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 3px solid #444;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.mode-button:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
+.mode-button.single-mode:hover {
+  border-color: #646cff;
+  background: linear-gradient(135deg, #1a1a2a 0%, #2a2a3a 100%);
+}
+
+.mode-button.multi-mode:hover {
+  border-color: #4ade80;
+  background: linear-gradient(135deg, #1a2a1a 0%, #2a3a2a 100%);
+}
+
+.mode-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.mode-button h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #fff;
+}
+
+.mode-button p {
+  color: #999;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .mode-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-button {
+    padding: 2rem 1.5rem;
+  }
+}
