@@ -320,7 +320,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
                   <div className="answer-display-area">
                     {myAnswer.type === 'text' ? (
-                      <div className="answer-display-text">{myAnswer.text || '(入力してください)'}</div>
+                      <input
+                        type="text"
+                        value={myAnswer.text}
+                        onChange={(e) => setMyAnswer({ ...myAnswer, text: e.target.value })}
+                        placeholder="(入力してください)"
+                        className="answer-display-input"
+                      />
                     ) : (
                       <DrawingCanvas
                         onDrawingComplete={(data) => setMyAnswer({ ...myAnswer, drawing: data })}
@@ -361,25 +367,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                         お絵描き
                       </button>
                     </div>
-                    {myAnswer.type === 'text' && (
-                      <input
-                        type="text"
-                        value={myAnswer.text}
-                        onChange={(e) => setMyAnswer({ ...myAnswer, text: e.target.value })}
-                        placeholder="キーボードで入力"
-                        style={{
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          borderBottom: '2px solid white',
-                          color: 'white',
-                          fontSize: '1.2rem',
-                          padding: '0.5rem',
-                          textAlign: 'center',
-                          width: '300px',
-                          outline: 'none'
-                        }}
-                      />
-                    )}
                   </div>
                 </>
               ) : (

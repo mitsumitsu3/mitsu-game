@@ -279,6 +279,22 @@
   word-break: break-all;
 }
 
+.answer-display-input {
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  background-color: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  max-width: 500px;
+}
+
+.answer-display-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .answer-input-bottom {
   color: white;
   font-size: 1rem;
@@ -326,9 +342,9 @@
   grid-template-columns: repeat(2, 1fr) !important;
   gap: 4px !important;
   width: 100% !important;
-  max-width: 350px !important;
+  max-width: 95% !important;
   margin: 0 auto !important;
-  padding: 0 10px !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
 }
 
@@ -337,8 +353,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 160px;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1 / 0.85;
   box-sizing: border-box;
   overflow: hidden;
   border: 3px solid #0000aa;
@@ -517,20 +532,24 @@
 /* 広い画面（デスクトップ）では横並び */
 @media (min-width: 768px) {
   .answers-grid {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 4px;
-    max-width: none;
-    padding: 0;
-    justify-content: center;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 2px !important;
+    max-width: none !important;
+    padding: 0 !important;
+    justify-content: center !important;
   }
 
   .answer-card {
-    width: 140px;
-    max-width: 140px;
-    height: 140px;
-    aspect-ratio: auto;
-    flex-shrink: 0;
+    width: 160px !important;
+    height: 160px !important;
+    aspect-ratio: auto !important;
+    flex-shrink: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .answer-card-content {
+    height: calc(100% - 30px) !important;
   }
 
   .answer-text {
@@ -540,6 +559,8 @@
   .answer-card-footer {
     font-size: 0.85rem;
     padding: 0.4rem;
+    height: 30px !important;
+    box-sizing: border-box;
   }
 }
 
@@ -609,7 +630,7 @@
 
   .answer-display-area {
     min-height: 200px;
-    max-height: 250px;
+    max-height: 450px;
   }
 
   .answer-display-text {
