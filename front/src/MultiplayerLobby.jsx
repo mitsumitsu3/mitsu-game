@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './MultiplayerLobby.css'
 
-function MultiplayerLobby({ onCreateRoom, onJoinRoom, onBack }) {
+function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode }) {
   const [mode, setMode] = useState(null) // 'create' or 'join'
   const [playerName, setPlayerName] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -46,10 +46,58 @@ function MultiplayerLobby({ onCreateRoom, onJoinRoom, onBack }) {
     }
   }
 
-  if (!mode) {
+  // ホストモードでない場合、モード選択をスキップして参加画面へ
+  if (!mode && !isHostMode) {
     return (
       <div className="multiplayer-lobby">
-        <h2>マルチプレイヤー</h2>
+        <h2>ルームに参加</h2>
+        <form onSubmit={handleJoinRoom} className="lobby-form">
+          <div className="form-group">
+            <label>ルームコード</label>
+            <input
+              type="text"
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="6文字のコード"
+              maxLength={6}
+              disabled={loading}
+              className="room-code-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>あなたの名前</label>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              placeholder="プレイヤー名を入力"
+              maxLength={20}
+              disabled={loading}
+            />
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          <div className="form-buttons">
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={loading || !playerName.trim() || !roomCode.trim()}
+            >
+              {loading ? '参加中...' : 'ルームに参加'}
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // ホストモードの場合のみモード選択を表示
+  if (!mode && isHostMode) {
+    return (
+      <div className="multiplayer-lobby">
+        <h2>ホストモード</h2>
         <div className="lobby-buttons">
           <button
             className="lobby-button create-button"
@@ -70,9 +118,6 @@ function MultiplayerLobby({ onCreateRoom, onJoinRoom, onBack }) {
           </button>
         </div>
 
-        <button className="back-button" onClick={onBack}>
-          ← モード選択に戻る
-        </button>
       </div>
     )
   }

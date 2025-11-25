@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import ModeSelection from './ModeSelection'
-import SinglePlayerGame from './SinglePlayerGame'
 import MultiplayerLobby from './MultiplayerLobby'
 import MultiplayerGame from './MultiplayerGame'
 import { CREATE_ROOM, JOIN_ROOM } from './graphql/mutations'
@@ -9,18 +7,22 @@ import './App.css'
 const STORAGE_KEY = 'mitsu_game_session'
 
 function App() {
-  const [screen, setScreen] = useState('mode-selection') // mode-selection, single, multi-lobby, multi-game
+  const [screen, setScreen] = useState('lobby') // lobby, game
   const [multiplayerData, setMultiplayerData] = useState(null)
+  const [isHostMode, setIsHostMode] = useState(false)
 
-  // ページ読み込み時にセッションを復元
+  // ページ読み込み時にセッションを復元 & ホストモード判定
   useEffect(() => {
+    // #host がURLにあればホストモードを有効化
+    setIsHostMode(window.location.hash === '#host')
+
     const savedSession = localStorage.getItem(STORAGE_KEY)
     if (savedSession) {
       try {
         const session = JSON.parse(savedSession)
         console.log('Restoring session:', session)
         setMultiplayerData(session)
-        setScreen('multi-game')
+        setScreen('game')
       } catch (err) {
         console.error('Failed to restore session:', err)
         localStorage.removeItem(STORAGE_KEY)
@@ -35,16 +37,6 @@ function App() {
     } else {
       localStorage.removeItem(STORAGE_KEY)
     }
-  }
-
-  // シングルプレイモードを選択
-  const handleSelectSingleMode = () => {
-    setScreen('single')
-  }
-
-  // マルチプレイヤーモードを選択
-  const handleSelectMultiMode = () => {
-    setScreen('multi-lobby')
   }
 
   // GraphQL APIを直接呼び出すヘルパー関数
@@ -92,7 +84,7 @@ function App() {
       }
       setMultiplayerData(sessionData)
       saveSession(sessionData)
-      setScreen('multi-game')
+      setScreen('game')
     } catch (error) {
       console.error('Failed to create room:', error)
 
@@ -131,7 +123,7 @@ function App() {
       }
       setMultiplayerData(sessionData)
       saveSession(sessionData)
-      setScreen('multi-game')
+      setScreen('game')
     } catch (error) {
       console.error('Failed to join room:', error)
       const errorMessage = error.errors?.[0]?.message || error.message || 'Unknown error'
@@ -139,48 +131,30 @@ function App() {
     }
   }
 
-  // モード選択に戻る
-  const handleBackToModeSelection = () => {
-    setScreen('mode-selection')
-    setMultiplayerData(null)
-  }
-
-  // マルチプレイヤーロビーに戻る
+  // ロビーに戻る
   const handleBackToLobby = () => {
-    setScreen('multi-lobby')
+    setScreen('lobby')
     setMultiplayerData(null)
   }
 
-  // マルチプレイヤーゲームから退出
+  // ゲームから退出
   const handleLeaveGame = () => {
     saveSession(null) // セッションを削除
-    setScreen('multi-lobby')
+    setScreen('lobby')
     setMultiplayerData(null)
   }
 
   return (
     <>
-      {screen === 'mode-selection' && (
-        <ModeSelection
-          onSelectMode={(mode) =>
-            mode === 'single' ? handleSelectSingleMode() : handleSelectMultiMode()
-          }
-        />
-      )}
-
-      {screen === 'single' && (
-        <SinglePlayerGame onBack={handleBackToModeSelection} />
-      )}
-
-      {screen === 'multi-lobby' && (
+      {screen === 'lobby' && (
         <MultiplayerLobby
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
-          onBack={handleBackToModeSelection}
+          isHostMode={isHostMode}
         />
       )}
 
-      {screen === 'multi-game' && multiplayerData && (
+      {screen === 'game' && multiplayerData && (
         <MultiplayerGame
           roomId={multiplayerData.roomId}
           playerId={multiplayerData.playerId}

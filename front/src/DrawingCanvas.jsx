@@ -22,7 +22,7 @@ function DrawingCanvas({ onDrawingComplete, initialData = null }) {
       img.src = initialData
     } else {
       // キャンバスを青で初期化
-      ctx.fillStyle = '#0d47a1'
+      ctx.fillStyle = '#0000ff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
     }
   }, [initialData])

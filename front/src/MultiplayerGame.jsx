@@ -495,9 +495,6 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
               <div className="answers-grid">
                 {room.answers?.map(answer => (
                   <div key={answer.answerId} className="answer-card">
-                    <div className="answer-card-header">
-                      {answer.playerName}
-                    </div>
                     <div className="answer-card-content">
                       {answer.answerType === 'TEXT' ? (
                         <div className="answer-text">{answer.textAnswer}</div>
@@ -506,6 +503,9 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                           <img src={answer.drawingData} alt={`${answer.playerName}の絵`} />
                         </div>
                       )}
+                    </div>
+                    <div className="answer-card-footer">
+                      {answer.playerName}
                     </div>
                   </div>
                 ))}
