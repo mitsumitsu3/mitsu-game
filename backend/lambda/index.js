@@ -9,9 +9,9 @@ const ROOM_TABLE = process.env.ROOM_TABLE;
 const PLAYER_TABLE = process.env.PLAYER_TABLE;
 const ANSWER_TABLE = process.env.ANSWER_TABLE;
 
-// ランダムなルームコードを生成（6文字）
+// ランダムなルームコードを生成（数字6桁）
 function generateRoomCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 // メインハンドラー
@@ -399,10 +399,11 @@ async function generateComments(topic, answers) {
             `コメントの特徴:\n` +
             `- 短く簡潔（5〜15文字程度）\n` +
             `- 各プレイヤーに対して様々な角度からコメント（共感、ツッコミ、驚き、大喜利、ボケなど）\n` +
-            `- 「www」「草」「それな」「やばい」などネットスラング多用\n` +
-            `- 「www」は多用しすぎない程度に使用する\n` +
+            `- 「草」「それな」「やばい」などネットスラング多用\n` +
+            `- 「www」等の笑いの表現は多用しすぎない程度に使用する\n` +
             `- 似たようなコメントは避け、バリエーションを持たせる\n` +
             `- 絵の回答には絵の具体的な内容や特徴に言及する\n` +
+            `- お題に対して全員が一致してるかどうかの反応も言及する\n` +
             `- 全員の回答を比較するコメントも含める\n\n` +
             `回答:\n`
     }

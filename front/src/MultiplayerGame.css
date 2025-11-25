@@ -49,6 +49,22 @@
   font-size: 0.75rem;
 }
 
+.share-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.4rem;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.share-button:hover {
+  opacity: 1;
+}
+
 .room-info p {
   margin: 0;
   color: #ffcdd2;
@@ -353,9 +369,9 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  aspect-ratio: 1 / 0.85;
+  min-height: 120px;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   border: 3px solid #0000aa;
   border-radius: 0;
 }
@@ -367,6 +383,8 @@
   flex: 1;
   overflow: hidden;
   background-color: #0000ff;
+  aspect-ratio: 1 / 0.75;
+  min-height: 80px;
 }
 
 .answer-text {
@@ -402,6 +420,7 @@
   padding: 0.4rem;
   font-weight: normal;
   flex-shrink: 0;
+  min-height: 1.5rem;
 }
 
 .judge-result {
@@ -529,15 +548,16 @@
   opacity: 0.9;
 }
 
-/* 広い画面（デスクトップ）では横並び */
+/* 広い画面（デスクトップ）では横並び（4人まで1行、5人以上は折り返し） */
 @media (min-width: 768px) {
   .answers-grid {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    gap: 2px !important;
-    max-width: none !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    max-width: 680px !important;
     padding: 0 !important;
     justify-content: center !important;
+    margin: 0 auto !important;
   }
 
   .answer-card {

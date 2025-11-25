@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import './MultiplayerLobby.css'
 
-function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode }) {
+function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode, initialRoomCode = '' }) {
   const [mode, setMode] = useState(null) // 'create' or 'join'
   const [playerName, setPlayerName] = useState('')
-  const [roomCode, setRoomCode] = useState('')
+  const [roomCode, setRoomCode] = useState(initialRoomCode)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 

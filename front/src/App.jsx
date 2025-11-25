@@ -11,10 +11,20 @@ function App() {
   const [multiplayerData, setMultiplayerData] = useState(null)
   const [isHostMode, setIsHostMode] = useState(false)
 
-  // ページ読み込み時にセッションを復元 & ホストモード判定
+  // URLからルームコードを取得
+  const [initialRoomCode, setInitialRoomCode] = useState('')
+
+  // ページ読み込み時にセッションを復元 & ホストモード判定 & ルームコード取得
   useEffect(() => {
     // #host がURLにあればホストモードを有効化
     setIsHostMode(window.location.hash === '#host')
+
+    // URLのクエリパラメータからルームコードを取得
+    const urlParams = new URLSearchParams(window.location.search)
+    const roomCodeFromUrl = urlParams.get('room')
+    if (roomCodeFromUrl) {
+      setInitialRoomCode(roomCodeFromUrl.toUpperCase())
+    }
 
     const savedSession = localStorage.getItem(STORAGE_KEY)
     if (savedSession) {
@@ -151,6 +161,7 @@ function App() {
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
           isHostMode={isHostMode}
+          initialRoomCode={initialRoomCode}
         />
       )}
 

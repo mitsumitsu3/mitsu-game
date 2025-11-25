@@ -538,7 +538,20 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         {/* フッター（旧ヘッダー） */}
         <div className="game-footer">
           <div className="room-info">
-            <h2>ルームコード: <span className="room-code">{room.roomCode}</span></h2>
+            <h2>ルームコード: <span className="room-code">{room.roomCode}</span>
+              <button
+                className="share-button"
+                onClick={() => {
+                  const shareUrl = `${window.location.origin}${window.location.pathname}?room=${room.roomCode}`
+                  navigator.clipboard.writeText(shareUrl)
+                    .then(() => alert('招待URLをコピーしました！'))
+                    .catch(() => alert('コピーに失敗しました'))
+                }}
+                title="招待URLをコピー"
+              >
+                📋
+              </button>
+            </h2>
             <p>あなた: {playerName} {isHost && '(ホスト)'}</p>
           </div>
           <button className="leave-button" onClick={handleLeave}>
