@@ -172,7 +172,7 @@ async function generateTopics(usedTopics = []) {
       'Authorization': `Bearer ${OPENAI_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -313,11 +313,11 @@ async function submitAnswer({ roomId, playerId, answerType, textAnswer, drawingD
   return answer;
 }
 
-// 判定画面に遷移（コメント生成を非同期で開始）
+// 判定画面に遷移してコメント生成
 async function startJudging({ roomId }) {
   const now = new Date().toISOString();
 
-  // 判定画面に即座に遷移
+  // 判定画面に遷移
   await ddb.send(new UpdateCommand({
     TableName: ROOM_TABLE,
     Key: { roomId },
@@ -332,10 +332,10 @@ async function startJudging({ roomId }) {
     },
   }));
 
-  // コメント生成を非同期で開始（待たない）
-  generateJudgingComments({ roomId }).catch(err => {
-    console.error('Failed to generate comments:', err);
-  });
+  // コメント生成を実行（完了を待つ）
+  console.log('Generating comments...');
+  await generateJudgingComments({ roomId });
+  console.log('Comments generated successfully');
 
   return await getRoom({ roomId });
 }
@@ -379,7 +379,7 @@ async function generateJudgingComments({ roomId }) {
   };
 }
 
-// GPT-4 Visionでニコニコ風コメント生成
+// ニコニコ風コメント生成（テキストのみ）
 async function generateComments(topic, answers) {
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -390,52 +390,21 @@ async function generateComments(topic, answers) {
   // プレイヤー名のリストを作成
   const playerNames = answers.map(a => a.playerName).join('、');
 
-  // メッセージコンテンツを構築
-  const content = [
-    {
-      type: 'text',
-      text: `お題: ${topic}\n\n以下はゲーム参加者の回答です。ニコニコ動画風のツッコミコメントを30個生成してください。\n\n` +
-            `【重要】必ず全員（${playerNames}）に対するコメントを含めること。\n\n` +
-            `コメントの特徴:\n` +
-            `- 短く簡潔（5〜15文字程度）\n` +
-            `- 各プレイヤーに対して様々な角度からコメント（共感、ツッコミ、驚き、大喜利、ボケなど）\n` +
-            `- 「草」「それな」「やばい」などネットスラング多用\n` +
-            `- 「www」等の笑いの表現は多用しすぎない程度に使用する\n` +
-            `- 似たようなコメントは避け、バリエーションを持たせる\n` +
-            `- 絵の回答には絵の具体的な内容や特徴に言及する\n` +
-            `- お題に対して全員が一致してるかどうかの反応も言及する\n` +
-            `- 全員の回答を比較するコメントも含める\n\n` +
-            `回答:\n`
-    }
-  ];
+  // 回答一覧をテキストで構築
+  const answersText = answers.map(a => `${a.playerName}: ${a.textAnswer || '(回答なし)'}`).join('\n');
 
-  // 各回答を追加（テキストと画像）
-  for (const answer of answers) {
-    content.push({
-      type: 'text',
-      text: `\n${answer.playerName}の回答: `
-    });
-
-    if (answer.answerType === 'TEXT') {
-      content.push({
-        type: 'text',
-        text: answer.textAnswer
-      });
-    } else {
-      // 画像の場合はBase64データを送信
-      content.push({
-        type: 'image_url',
-        image_url: {
-          url: answer.drawingData
-        }
-      });
-    }
-  }
-
-  content.push({
-    type: 'text',
-    text: '\n\n各コメントを改行で区切って出力してください。番号や記号は付けないでください。30個のコメントすべてで、全員のプレイヤーに対するツッコミをバランスよく含めてください。'
-  });
+  const prompt = `お題: ${topic}\n\n以下はゲーム参加者の回答です。ニコニコ動画風のツッコミコメントを30個生成してください。\n\n` +
+        `【重要】必ず全員（${playerNames}）に対するコメントを含めること。\n\n` +
+        `コメントの特徴:\n` +
+        `- 短く簡潔（5〜15文字程度）\n` +
+        `- 各プレイヤーに対して様々な角度からコメント（共感、ツッコミ、驚き、大喜利、ボケなど）\n` +
+        `- 「草」「それな」「やばい」などネットスラング多用\n` +
+        `- 「www」等の笑いの表現は多用しすぎない程度に使用する\n` +
+        `- 似たようなコメントは避け、バリエーションを持たせる\n` +
+        `- お題に対して全員が一致していた場合は15コメントほどは「おめでとう」などのお祝いの言葉を多用する\n` +
+        `- 全員の回答を比較するコメントも含める\n\n` +
+        `回答:\n${answersText}\n\n` +
+        `各コメントを改行で区切って出力してください。番号や記号は付けないでください。30個のコメントすべてで、全員のプレイヤーに対するツッコミをバランスよく含めてください。`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -444,15 +413,15 @@ async function generateComments(topic, answers) {
       'Authorization': `Bearer ${OPENAI_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o',  // GPT-4 Vision対応モデル
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'user',
-          content: content
+          content: prompt
         }
       ],
       temperature: 0.9,
-      max_tokens: 1000  // 30個のコメントに調整
+      max_tokens: 1000
     })
   });
 

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import DrawingCanvas from './DrawingCanvas'
 import NicoComments from './NicoComments'
 import { GET_ROOM } from './graphql/queries'
 import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, DELETE_ALL_DATA } from './graphql/mutations'
@@ -35,7 +34,7 @@ const callGraphQL = async (query, variables = {}) => {
 
 function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   const [room, setRoom] = useState(null)
-  const [myAnswer, setMyAnswer] = useState({ type: 'text', text: '', drawing: null })
+  const [myAnswer, setMyAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showResultOverlay, setShowResultOverlay] = useState(false)
@@ -108,6 +107,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     }
   }, [room?.judgedAt])
 
+
   // ゲーム開始（バックエンドで10個のお題を生成）
   const startGame = async () => {
     setLoading(true)
@@ -136,13 +136,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
       await callGraphQL(SUBMIT_ANSWER, {
         roomId,
         playerId,
-        answerType: myAnswer.type === 'text' ? 'TEXT' : 'DRAWING',
-        textAnswer: myAnswer.type === 'text' ? myAnswer.text : null,
-        drawingData: myAnswer.type === 'drawing' ? myAnswer.drawing : null
+        answerType: 'TEXT',
+        textAnswer: myAnswer,
+        drawingData: null
       })
 
       // 回答をリセット
-      setMyAnswer({ type: 'text', text: '', drawing: null })
+      setMyAnswer('')
       // すぐに最新情報を取得
       await fetchRoom()
     } catch (err) {
@@ -171,7 +171,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   }
 
   const nextRound = async () => {
-    setMyAnswer({ type: 'text', text: '', drawing: null })
+    setMyAnswer('')
 
     try {
       // バックエンドで次のお題を取得してラウンド開始
@@ -293,14 +293,14 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                 <>
                   <div className="top-buttons">
                     <button
-                      onClick={() => setMyAnswer({ ...myAnswer, text: '', drawing: null })}
+                      onClick={() => setMyAnswer('')}
                       className="white-outline-button"
                     >
                       書き直す
                     </button>
                     <button
                       onClick={submitAnswer}
-                      disabled={loading || (myAnswer.type === 'text' ? !myAnswer.text.trim() : !myAnswer.drawing)}
+                      disabled={loading || !myAnswer.trim()}
                       className="white-outline-button"
                     >
                       {loading ? '提出中...' : '回答を送付'}
@@ -319,54 +319,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                   </div>
 
                   <div className="answer-display-area">
-                    {myAnswer.type === 'text' ? (
-                      <input
-                        type="text"
-                        value={myAnswer.text}
-                        onChange={(e) => setMyAnswer({ ...myAnswer, text: e.target.value })}
-                        placeholder="(入力してください)"
-                        className="answer-display-input"
-                      />
-                    ) : (
-                      <DrawingCanvas
-                        onDrawingComplete={(data) => setMyAnswer({ ...myAnswer, drawing: data })}
-                        initialData={myAnswer.drawing}
-                      />
-                    )}
-                  </div>
-
-                  <div className="answer-input-bottom">
-                    <div style={{ marginBottom: '1rem' }}>
-                      <button
-                        style={{
-                          backgroundColor: myAnswer.type === 'text' ? 'white' : 'transparent',
-                          color: myAnswer.type === 'text' ? '#0d47a1' : 'white',
-                          border: '2px solid white',
-                          padding: '0.5rem 2rem',
-                          marginRight: '1rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold'
-                        }}
-                        onClick={() => setMyAnswer({ type: 'text', text: '', drawing: null })}
-                      >
-                        テキスト
-                      </button>
-                      <button
-                        style={{
-                          backgroundColor: myAnswer.type === 'drawing' ? 'white' : 'transparent',
-                          color: myAnswer.type === 'drawing' ? '#0d47a1' : 'white',
-                          border: '2px solid white',
-                          padding: '0.5rem 2rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold'
-                        }}
-                        onClick={() => setMyAnswer({ type: 'drawing', text: '', drawing: null })}
-                      >
-                        お絵描き
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      value={myAnswer}
+                      onChange={(e) => setMyAnswer(e.target.value)}
+                      placeholder="(入力してください)"
+                      className="answer-display-input"
+                    />
                   </div>
                 </>
               ) : (
@@ -405,49 +364,47 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
           {/* 判定画面 */}
           {room.state === 'JUDGING' && (
             <div className="judging-screen">
-              {/* コメント生成状態の表示（ホストのみ） */}
-              {isHost && (
-                <div style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  backgroundColor: room.judgedAt ? '#4caf50' : '#ff9800',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                  zIndex: 100
-                }}>
-                  {!room.judgedAt ? (
-                    <>
-                      <div style={{
-                        width: '16px',
-                        height: '16px',
-                        border: '3px solid white',
-                        borderTopColor: 'transparent',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      <span>コメント生成中...</span>
-                      <style>{`
-                        @keyframes spin {
-                          to { transform: rotate(360deg); }
-                        }
-                      `}</style>
-                    </>
-                  ) : (
-                    <>
-                      <span>✓</span>
-                      <span>コメント生成完了</span>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* コメント生成状態の表示（全員に表示） */}
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                backgroundColor: room.judgedAt ? '#4caf50' : '#ff9800',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                zIndex: 100
+              }}>
+                {!room.judgedAt ? (
+                  <>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '3px solid white',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <span>コメント生成中...</span>
+                    <style>{`
+                      @keyframes spin {
+                        to { transform: rotate(360deg); }
+                      }
+                    `}</style>
+                  </>
+                ) : (
+                  <>
+                    <span>✓</span>
+                    <span>コメント生成完了</span>
+                  </>
+                )}
+              </div>
 
               {!room.lastJudgeResult && room.lastJudgeResult !== false && (
                 <div className="judge-instruction">
@@ -483,13 +440,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                 {room.answers?.map(answer => (
                   <div key={answer.answerId} className="answer-card">
                     <div className="answer-card-content">
-                      {answer.answerType === 'TEXT' ? (
-                        <div className="answer-text">{answer.textAnswer}</div>
-                      ) : (
-                        <div className="answer-drawing-preview">
-                          <img src={answer.drawingData} alt={`${answer.playerName}の絵`} />
-                        </div>
-                      )}
+                      <div className="answer-text">{answer.textAnswer}</div>
                     </div>
                     <div className="answer-card-footer">
                       {answer.playerName}
