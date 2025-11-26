@@ -107,13 +107,13 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-api'
 
-  # API Key
+  # API Key（有効期限: 2026年11月27日）
   AppSyncApiKey:
     Type: AWS::AppSync::ApiKey
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       Description: API Key for Mitsu Game
-      Expires: !Ref AWS::NoValue  # 永続的
+      Expires: 1795710276  # 2026-11-27（1年後）
 
   # GraphQL Schema
   AppSyncSchema:
@@ -198,13 +198,15 @@ Resources:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
 
-  # Lambda Resolver Function
+  # Lambda Resolver Function (Go)
   ResolverFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-resolver'
-      Runtime: nodejs20.x
-      Handler: index.handler
+      Runtime: provided.al2023
+      Handler: bootstrap
+      Architectures:
+        - arm64
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: !Ref DeployBucket
