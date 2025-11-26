@@ -5,13 +5,14 @@ import App from './App.jsx'
 import { amplifyConfig } from './aws-config'
 import './index.css'
 
-// Amplify設定（v6形式）
+// Amplify設定（v6形式 - Cognito Identity Pool認証）
 Amplify.configure(amplifyConfig, { ssr: false })
 
 console.log('Amplify configured with:', {
-  endpoint: amplifyConfig.API.GraphQL.endpoint,
-  region: amplifyConfig.API.GraphQL.region,
-  authMode: amplifyConfig.API.GraphQL.defaultAuthMode
+  endpoint: amplifyConfig.API?.GraphQL?.endpoint,
+  region: amplifyConfig.API?.GraphQL?.region,
+  authMode: amplifyConfig.API?.GraphQL?.defaultAuthMode,
+  identityPoolId: amplifyConfig.Auth?.Cognito?.identityPoolId
 })
 
 ReactDOM.createRoot(document.getElementById('root')).render(

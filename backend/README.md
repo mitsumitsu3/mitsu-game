@@ -304,10 +304,4 @@ aws cloudformation delete-stack --stack-name mitsu-game-backend-stack
 
 **参考**: 小規模な利用（1日10ゲーム、各ゲーム10ラウンド）の場合、月額$1未満です。
 
-## 次のステップ
-
-1. フロントエンドにAppSyncクライアントを統合
-2. ルーム作成/参加画面を追加
-3. リアルタイム同期を実装
-
 詳細は親ディレクトリの`README.md`を参照してください。

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { generateClient } from 'aws-amplify/api'
 import NicoComments from './NicoComments'
 import { GET_ROOM } from './graphql/queries'
 import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, DELETE_ALL_DATA } from './graphql/mutations'
@@ -6,31 +7,8 @@ import './MultiplayerGame.css'
 
 const POLLING_INTERVAL = 3000 // 3秒ごとにポーリング
 
-// GraphQL APIを直接呼び出すヘルパー関数
-const callGraphQL = async (query, variables = {}) => {
-  const endpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT
-  const apiKey = import.meta.env.VITE_API_KEY
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  })
-
-  const result = await response.json()
-
-  if (result.errors) {
-    throw { errors: result.errors, data: result.data }
-  }
-
-  return result
-}
+// Amplify GraphQL Client（IAM認証 + Cognito Identity Pool）
+const client = generateClient()
 
 function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   const [room, setRoom] = useState(null)
@@ -44,7 +22,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   // ルーム情報を取得
   const fetchRoom = async () => {
     try {
-      const result = await callGraphQL(GET_ROOM, { roomId })
+      const result = await client.graphql({
+        query: GET_ROOM,
+        variables: { roomId }
+      })
       if (!result.data.getRoom) {
         // ルームが存在しない場合
         console.error('Room not found, clearing session')
@@ -115,7 +96,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
     try {
       // バックエンドでお題を生成してゲーム開始
-      await callGraphQL(START_GAME, { roomId })
+      await client.graphql({
+        query: START_GAME,
+        variables: { roomId }
+      })
 
       // 最新のルーム情報を取得
       await fetchRoom()
@@ -133,12 +117,15 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     setError('')
 
     try {
-      await callGraphQL(SUBMIT_ANSWER, {
-        roomId,
-        playerId,
-        answerType: 'TEXT',
-        textAnswer: myAnswer,
-        drawingData: null
+      await client.graphql({
+        query: SUBMIT_ANSWER,
+        variables: {
+          roomId,
+          playerId,
+          answerType: 'TEXT',
+          textAnswer: myAnswer,
+          drawingData: null
+        }
       })
 
       // 回答をリセット
@@ -156,12 +143,18 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   const judgeAnswers = async (isMatch) => {
     try {
       console.log('Judging answers:', { roomId, isMatch })
-      const result = await callGraphQL(JUDGE_ANSWERS, { roomId, isMatch })
+      const result = await client.graphql({
+        query: JUDGE_ANSWERS,
+        variables: { roomId, isMatch }
+      })
       console.log('Judge result:', result)
       console.log('Judge result data:', result.data.judgeAnswers)
 
       // ルーム情報を再取得
-      const roomResult = await callGraphQL(GET_ROOM, { roomId })
+      const roomResult = await client.graphql({
+        query: GET_ROOM,
+        variables: { roomId }
+      })
       console.log('Fresh room data:', roomResult.data.getRoom)
       setRoom(roomResult.data.getRoom)
     } catch (err) {
@@ -175,7 +168,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
     try {
       // バックエンドで次のお題を取得してラウンド開始
-      await callGraphQL(NEXT_ROUND, { roomId })
+      await client.graphql({
+        query: NEXT_ROUND,
+        variables: { roomId }
+      })
       await fetchRoom()
     } catch (err) {
       console.error('Failed to start next round:', err)
@@ -184,7 +180,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
   const endGame = async () => {
     try {
-      await callGraphQL(END_GAME, { roomId })
+      await client.graphql({
+        query: END_GAME,
+        variables: { roomId }
+      })
       await fetchRoom()
     } catch (err) {
       console.error('Failed to end game:', err)
@@ -193,7 +192,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
   const handleLeave = async () => {
     try {
-      await callGraphQL(LEAVE_ROOM, { roomId, playerId })
+      await client.graphql({
+        query: LEAVE_ROOM,
+        variables: { roomId, playerId }
+      })
       onLeave()
     } catch (err) {
       console.error('Failed to leave room:', err)
@@ -209,7 +211,9 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     setLoading(true)
     try {
       console.log('Calling deleteAllData mutation...')
-      const result = await callGraphQL(DELETE_ALL_DATA)
+      const result = await client.graphql({
+        query: DELETE_ALL_DATA
+      })
       console.log('deleteAllData result:', result)
       alert(`削除完了:\nルーム: ${result.data.deleteAllData.deletedCounts.rooms}件\nプレイヤー: ${result.data.deleteAllData.deletedCounts.players}件\n回答: ${result.data.deleteAllData.deletedCounts.answers}件`)
       // ホーム画面に戻る
@@ -340,7 +344,10 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                         setLoading(true)
                         try {
                           // 判定画面に遷移（コメント生成は裏で非同期実行される）
-                          await callGraphQL(START_JUDGING, { roomId })
+                          await client.graphql({
+                            query: START_JUDGING,
+                            variables: { roomId }
+                          })
                           await fetchRoom()
                         } catch (err) {
                           console.error('Failed to start judging:', err)

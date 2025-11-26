@@ -17,7 +17,9 @@ Parameters:
     Description: OpenAI API Key for topic and comment generation
 
 Resources:
+  # ===========================================
   # DynamoDB Tables
+  # ===========================================
 
   # ルームテーブル
   RoomTable:
@@ -97,23 +99,67 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-answers'
 
+  # ===========================================
+  # Cognito Identity Pool（未認証アクセス用 - ユーザー登録不要）
+  # ===========================================
+
+  # Identity Pool - ユーザー登録不要で一時的なAWS認証情報を発行
+  CognitoIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub '${ProjectName}-identity-pool'
+      AllowUnauthenticatedIdentities: true  # 未認証アクセスを許可（登録不要）
+
+  # 未認証ユーザー用のIAMロール
+  CognitoUnauthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-cognito-unauth-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: 'sts:AssumeRoleWithWebIdentity'
+            Condition:
+              StringEquals:
+                'cognito-identity.amazonaws.com:aud': !Ref CognitoIdentityPool
+              ForAnyValue:StringLike:
+                'cognito-identity.amazonaws.com:amr': unauthenticated
+      Policies:
+        - PolicyName: CognitoUnauthPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # AppSyncへのアクセスを許可
+              - Effect: Allow
+                Action:
+                  - 'appsync:GraphQL'
+                Resource:
+                  - !Sub 'arn:aws:appsync:${AWS::Region}:${AWS::AccountId}:apis/${AppSyncApi.ApiId}/*'
+
+  # Identity PoolとIAMロールの紐付け
+  CognitoIdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        unauthenticated: !GetAtt CognitoUnauthRole.Arn
+
+  # ===========================================
   # AppSync API
+  # ===========================================
+
+  # AppSync API（IAM認証を使用 - Cognito Identity Poolと連携）
   AppSyncApi:
     Type: AWS::AppSync::GraphQLApi
     Properties:
       Name: !Sub '${ProjectName}-api'
-      AuthenticationType: API_KEY
+      AuthenticationType: AWS_IAM
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-api'
-
-  # API Key（有効期限: 2026年11月27日）
-  AppSyncApiKey:
-    Type: AWS::AppSync::ApiKey
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      Description: API Key for Mitsu Game
-      Expires: 1795710276  # 2026-11-27（1年後）
 
   # GraphQL Schema
   AppSyncSchema:
@@ -121,6 +167,10 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       DefinitionS3Location: !Sub 's3://${DeployBucket}/schema.graphql'
+
+  # ===========================================
+  # Data Sources
+  # ===========================================
 
   # DynamoDB Data Sources
   RoomDataSource:
@@ -155,6 +205,21 @@ Resources:
       DynamoDBConfig:
         TableName: !Ref AnswerTable
         AwsRegion: !Ref AWS::Region
+
+  # Lambda Data Source
+  LambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: LambdaResolver
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt ResolverFunction.Arn
+
+  # ===========================================
+  # IAM Roles
+  # ===========================================
 
   # IAM Role for AppSync
   AppSyncServiceRole:
@@ -198,6 +263,10 @@ Resources:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
 
+  # ===========================================
+  # Lambda Function
+  # ===========================================
+
   # Lambda Resolver Function (Go)
   ResolverFunction:
     Type: AWS::Lambda::Function
@@ -219,18 +288,10 @@ Resources:
           OPENAI_API_KEY: !Ref OpenAIApiKey
       Timeout: 30
 
-  # Lambda Data Source
-  LambdaDataSource:
-    Type: AWS::AppSync::DataSource
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      Name: LambdaResolver
-      Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
-      LambdaConfig:
-        LambdaFunctionArn: !GetAtt ResolverFunction.Arn
-
+  # ===========================================
   # Resolvers - Mutations
+  # ===========================================
+
   CreateRoomResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncSchema
@@ -330,7 +391,10 @@ Resources:
       FieldName: deleteAllData
       DataSourceName: !GetAtt LambdaDataSource.Name
 
+  # ===========================================
   # Resolvers - Queries
+  # ===========================================
+
   GetRoomResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncSchema
@@ -367,6 +431,10 @@ Resources:
       FieldName: listAnswers
       DataSourceName: !GetAtt LambdaDataSource.Name
 
+# ===========================================
+# Outputs
+# ===========================================
+
 Outputs:
   GraphQLApiEndpoint:
     Description: GraphQL API Endpoint
@@ -380,11 +448,11 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-GraphQLApiId'
 
-  ApiKey:
-    Description: API Key
-    Value: !GetAtt AppSyncApiKey.ApiKey
+  IdentityPoolId:
+    Description: Cognito Identity Pool ID
+    Value: !Ref CognitoIdentityPool
     Export:
-      Name: !Sub '${AWS::StackName}-ApiKey'
+      Name: !Sub '${AWS::StackName}-IdentityPoolId'
 
   RoomTableName:
     Description: Room Table Name

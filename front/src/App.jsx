@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { generateClient } from 'aws-amplify/api'
 import MultiplayerLobby from './MultiplayerLobby'
 import MultiplayerGame from './MultiplayerGame'
 import { CREATE_ROOM, JOIN_ROOM } from './graphql/mutations'
 import './App.css'
 
 const STORAGE_KEY = 'mitsu_game_session'
+
+// Amplify GraphQL Client（IAM認証 + Cognito Identity Pool）
+const client = generateClient()
 
 function App() {
   const [screen, setScreen] = useState('lobby') // lobby, game
@@ -49,40 +53,16 @@ function App() {
     }
   }
 
-  // GraphQL APIを直接呼び出すヘルパー関数
-  const callGraphQL = async (query, variables = {}) => {
-    const endpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT
-    const apiKey = import.meta.env.VITE_API_KEY
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
-    })
-
-    const result = await response.json()
-
-    if (result.errors) {
-      throw { errors: result.errors, data: result.data }
-    }
-
-    return result
-  }
-
   // ルームを作成
   const handleCreateRoom = async (hostName) => {
     try {
       console.log('Creating room with hostName:', hostName)
-      console.log('GraphQL endpoint:', import.meta.env.VITE_GRAPHQL_ENDPOINT)
-      console.log('API Key:', import.meta.env.VITE_API_KEY ? 'Set' : 'Not set')
+      console.log('Using Amplify with IAM auth (Cognito Identity Pool)')
 
-      const result = await callGraphQL(CREATE_ROOM, { hostName })
+      const result = await client.graphql({
+        query: CREATE_ROOM,
+        variables: { hostName }
+      })
 
       console.log('Room created successfully:', result)
       const room = result.data.createRoom
@@ -122,7 +102,10 @@ function App() {
   // ルームに参加
   const handleJoinRoom = async (roomCode, playerName) => {
     try {
-      const result = await callGraphQL(JOIN_ROOM, { roomCode, playerName })
+      const result = await client.graphql({
+        query: JOIN_ROOM,
+        variables: { roomCode, playerName }
+      })
 
       const player = result.data.joinRoom
       const sessionData = {

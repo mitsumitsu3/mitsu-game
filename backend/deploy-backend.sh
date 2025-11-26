@@ -120,24 +120,24 @@ GRAPHQL_ENDPOINT=$(aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs[?OutputKey==`GraphQLApiEndpoint`].OutputValue' \
   --output text)
 
-API_KEY=$(aws cloudformation describe-stacks \
+IDENTITY_POOL_ID=$(aws cloudformation describe-stacks \
   --stack-name "$STACK_NAME" \
   --region "$AWS_REGION" \
-  --query 'Stacks[0].Outputs[?OutputKey==`ApiKey`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`IdentityPoolId`].OutputValue' \
   --output text)
 
 # .backend-config ファイルを作成
 cat > .backend-config << EOF
 # バックエンド設定ファイル（フロントエンドで使用）
 export GRAPHQL_ENDPOINT="$GRAPHQL_ENDPOINT"
-export API_KEY="$API_KEY"
+export IDENTITY_POOL_ID="$IDENTITY_POOL_ID"
 export AWS_REGION="$AWS_REGION"
 EOF
 
 # フロントエンド用の.env設定を出力
 cat > ../front/.env.backend << EOF
 VITE_GRAPHQL_ENDPOINT=$GRAPHQL_ENDPOINT
-VITE_API_KEY=$API_KEY
+VITE_IDENTITY_POOL_ID=$IDENTITY_POOL_ID
 VITE_AWS_REGION=$AWS_REGION
 EOF
 

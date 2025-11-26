@@ -1,34 +1,32 @@
-// AppSync設定 (Amplify v6形式)
+// AppSync設定 (Amplify v6形式 - Cognito Identity Pool認証)
+// ユーザー登録不要で、未認証（ゲスト）アクセスが可能
 const endpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT
-const region = import.meta.env.VITE_AWS_REGION
-const apiKey = import.meta.env.VITE_API_KEY
+const region = import.meta.env.VITE_AWS_REGION || 'ap-northeast-1'
+const identityPoolId = import.meta.env.VITE_IDENTITY_POOL_ID
 
 // 環境変数が設定されているか確認
-if (!endpoint || !apiKey) {
+if (!endpoint || !identityPoolId) {
   console.error('Missing required environment variables:')
   if (!endpoint) console.error('- VITE_GRAPHQL_ENDPOINT is not set')
-  if (!apiKey) console.error('- VITE_API_KEY is not set')
+  if (!identityPoolId) console.error('- VITE_IDENTITY_POOL_ID is not set')
 }
 
-export const awsConfig = {
-  API: {
-    GraphQL: {
-      endpoint: endpoint,
-      region: region || 'ap-northeast-1',
-      defaultAuthMode: 'apiKey',
-      apiKey: apiKey
-    }
-  }
-}
-
-// ResourcesConfigで直接エクスポート（Amplify v6推奨形式）
+// Amplify v6設定（IAM認証 + Cognito Identity Pool）
 export const amplifyConfig = {
+  Auth: {
+    Cognito: {
+      identityPoolId: identityPoolId,
+      allowGuestAccess: true  // 未認証（ゲスト）アクセスを許可
+    }
+  },
   API: {
     GraphQL: {
       endpoint: endpoint,
-      region: region || 'ap-northeast-1',
-      defaultAuthMode: 'apiKey',
-      apiKey: apiKey
+      region: region,
+      defaultAuthMode: 'iam'  // IAM認証を使用
     }
   }
 }
+
+// 後方互換性のためにawsConfigもエクスポート
+export const awsConfig = amplifyConfig
