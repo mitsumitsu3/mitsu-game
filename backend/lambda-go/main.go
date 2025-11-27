@@ -86,6 +86,8 @@ func handler(ctx context.Context, event AppSyncEvent) (interface{}, error) {
 		return joinRoom(ctx, event.Arguments)
 	case "leaveRoom":
 		return leaveRoom(ctx, event.Arguments)
+	case "kickPlayer":
+		return kickPlayer(ctx, event.Arguments)
 	case "deleteAllData":
 		return deleteAllData(ctx)
 

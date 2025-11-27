@@ -118,6 +118,12 @@ export const LEAVE_ROOM = `
   }
 `
 
+export const KICK_PLAYER = `
+  mutation KickPlayer($roomId: ID!, $playerId: ID!, $kickedPlayerId: ID!) {
+    kickPlayer(roomId: $roomId, playerId: $playerId, kickedPlayerId: $kickedPlayerId)
+  }
+`
+
 export const DELETE_ALL_DATA = `
   mutation DeleteAllData {
     deleteAllData {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import NicoComments from './NicoComments'
 import { GET_ROOM } from './graphql/queries'
-import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, DELETE_ALL_DATA } from './graphql/mutations'
+import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, KICK_PLAYER, DELETE_ALL_DATA } from './graphql/mutations'
 import './MultiplayerGame.css'
 
 const POLLING_INTERVAL = 3000 // 3秒ごとにポーリング
@@ -16,6 +16,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showResultOverlay, setShowResultOverlay] = useState(false)
+  const [showHostMenu, setShowHostMenu] = useState(false)
   const pollingIntervalRef = useRef(null)
   const lastJudgedAtRef = useRef(null)
 
@@ -36,6 +37,17 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         }, 2000)
         return
       }
+
+      // 自分がルームから追放されていないか確認
+      const myPlayerExists = result.data.getRoom.players?.some(p => p.playerId === playerId)
+      if (!myPlayerExists) {
+        console.log('Player was kicked from room')
+        localStorage.removeItem('mitsu_game_session')
+        alert('ホストによりルームから追放されました。')
+        onLeave()
+        return
+      }
+
       setRoom(result.data.getRoom)
     } catch (err) {
       console.error('Failed to fetch room:', err)
@@ -200,6 +212,25 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     } catch (err) {
       console.error('Failed to leave room:', err)
       onLeave()
+    }
+  }
+
+  // プレイヤーを追放
+  const kickPlayer = async (kickedPlayerId, kickedPlayerName) => {
+    if (!confirm(`${kickedPlayerName} をルームから追放しますか？`)) {
+      return
+    }
+
+    try {
+      await client.graphql({
+        query: KICK_PLAYER,
+        variables: { roomId, playerId, kickedPlayerId }
+      })
+      await fetchRoom()
+      setShowHostMenu(false)
+    } catch (err) {
+      console.error('Failed to kick player:', err)
+      setError('プレイヤーの追放に失敗しました')
     }
   }
 
@@ -512,11 +543,160 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
             </h2>
             <p>あなた: {playerName} {isHost && '(ホスト)'}</p>
           </div>
-          <button className="leave-button" onClick={handleLeave}>
-            退出
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {isHost && (
+              <button
+                className="leave-button"
+                onClick={() => setShowHostMenu(true)}
+                style={{ backgroundColor: '#4a5568' }}
+              >
+                参加者管理
+              </button>
+            )}
+            <button className="leave-button" onClick={handleLeave}>
+              退出
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* ホスト用メニュー（参加者管理） */}
+      {showHostMenu && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            width: '90%',
+            maxWidth: '400px',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', color: '#333' }}>参加者管理</h2>
+              <button
+                onClick={() => setShowHostMenu(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              参加者: {room.players?.length}人
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {room.players?.map(player => (
+                <div
+                  key={player.playerId}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.8rem 1rem',
+                    backgroundColor: player.playerId === playerId ? '#e8f5e9' : '#f5f5f5',
+                    borderRadius: '8px',
+                    border: player.role === 'HOST' ? '2px solid #4caf50' : '1px solid #ddd'
+                  }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 'bold', color: '#333' }}>{player.name}</span>
+                    {player.role === 'HOST' && (
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        fontSize: '0.75rem',
+                        backgroundColor: '#4caf50',
+                        color: 'white',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '4px'
+                      }}>
+                        ホスト
+                      </span>
+                    )}
+                    {player.playerId === playerId && (
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: '#666'
+                      }}>
+                        (あなた)
+                      </span>
+                    )}
+                    {/* 回答済みかどうか表示 */}
+                    {room.state === 'ANSWERING' && (
+                      <span style={{
+                        marginLeft: '0.5rem',
+                        fontSize: '0.75rem',
+                        color: room.answers?.some(a => a.playerId === player.playerId) ? '#4caf50' : '#ff9800'
+                      }}>
+                        {room.answers?.some(a => a.playerId === player.playerId) ? '✓回答済' : '未回答'}
+                      </span>
+                    )}
+                  </div>
+                  {player.playerId !== playerId && (
+                    <button
+                      onClick={() => kickPlayer(player.playerId, player.name)}
+                      style={{
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.4rem 0.8rem',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      追放
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowHostMenu(false)}
+              style={{
+                width: '100%',
+                marginTop: '1.5rem',
+                padding: '0.8rem',
+                backgroundColor: '#333',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 判定結果の全画面演出 */}
       {(() => {

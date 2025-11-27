@@ -73,6 +73,9 @@ type Mutation {
   # ルームから退出
   leaveRoom(roomId: ID!, playerId: ID!): Boolean!
 
+  # プレイヤーを追放（ホストのみ）
+  kickPlayer(roomId: ID!, playerId: ID!, kickedPlayerId: ID!): Boolean!
+
   # ゲームを開始（ホストのみ）- お題プールを生成してゲーム開始
   startGame(roomId: ID!): Room!
 

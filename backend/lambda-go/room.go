@@ -145,6 +145,68 @@ func leaveRoom(ctx context.Context, args map[string]interface{}) (bool, error) {
 	return true, nil
 }
 
+// kickPlayer - プレイヤーを追放（ホストのみ）
+func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) {
+	roomID := args["roomId"].(string)
+	playerID := args["playerId"].(string)
+	kickedPlayerID := args["kickedPlayerId"].(string)
+
+	log.Printf("プレイヤー追放: roomId=%s, playerId=%s, kickedPlayerId=%s", roomID, playerID, kickedPlayerID)
+
+	// ルーム情報を取得してホストか確認
+	room, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		return false, err
+	}
+	if room == nil {
+		return false, fmt.Errorf("ルームが見つかりません")
+	}
+
+	// ホストのみ追放可能
+	if room.HostID != playerID {
+		return false, fmt.Errorf("ホストのみがプレイヤーを追放できます")
+	}
+
+	// 自分自身は追放できない
+	if playerID == kickedPlayerID {
+		return false, fmt.Errorf("自分自身を追放することはできません")
+	}
+
+	// プレイヤーを削除
+	_, err = ddbClient.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(playerTable),
+		Key: map[string]types.AttributeValue{
+			"playerId": &types.AttributeValueMemberS{Value: kickedPlayerID},
+		},
+	})
+	if err != nil {
+		return false, fmt.Errorf("プレイヤーの削除に失敗: %w", err)
+	}
+
+	// 追放されたプレイヤーの回答も削除
+	answers, err := listAnswers(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		log.Printf("警告: 回答の取得に失敗: %v", err)
+	} else {
+		for _, answer := range answers {
+			if answer.PlayerID == kickedPlayerID {
+				_, err := ddbClient.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+					TableName: aws.String(answerTable),
+					Key: map[string]types.AttributeValue{
+						"answerId": &types.AttributeValueMemberS{Value: answer.AnswerID},
+					},
+				})
+				if err != nil {
+					log.Printf("警告: 回答の削除に失敗 %s: %v", answer.AnswerID, err)
+				}
+			}
+		}
+	}
+
+	log.Printf("プレイヤー追放完了: kickedPlayerId=%s", kickedPlayerID)
+	return true, nil
+}
+
 // deleteAllData - 全データを削除（開発用）
 func deleteAllData(ctx context.Context) (*DeleteAllDataResponse, error) {
 	log.Println("全データ削除を開始")

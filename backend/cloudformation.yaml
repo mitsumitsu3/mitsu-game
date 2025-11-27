@@ -319,6 +319,15 @@ Resources:
       FieldName: leaveRoom
       DataSourceName: !GetAtt LambdaDataSource.Name
 
+  KickPlayerResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: kickPlayer
+      DataSourceName: !GetAtt LambdaDataSource.Name
+
   StartGameResolver:
     Type: AWS::AppSync::Resolver
     DependsOn: AppSyncSchema
