@@ -13,6 +13,8 @@ backend/lambda/.env
 # Build outputs
 front/dist/
 front/build/
+.vite/
+front/.vite/
 
 # Lambda deployment packages
 *.zip
