@@ -124,6 +124,11 @@ func joinRoom(ctx context.Context, args map[string]interface{}) (*Player, error)
 		return nil, fmt.Errorf("プレイヤーの作成に失敗: %w", err)
 	}
 
+	// Subscription用にPublish
+	if err := PublishPlayerJoined(ctx, &player); err != nil {
+		log.Printf("警告: PublishPlayerJoinedに失敗: %v", err)
+	}
+
 	return &player, nil
 }
 

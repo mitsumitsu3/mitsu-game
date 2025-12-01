@@ -36,6 +36,17 @@ func getRoom(ctx context.Context, args map[string]interface{}) (*Room, error) {
 		return nil, fmt.Errorf("ルームのアンマーシャルに失敗: %w", err)
 	}
 
+	// nullの場合は空配列を設定（GraphQLスキーマでnon-nullableのため）
+	if room.TopicsPool == nil {
+		room.TopicsPool = []string{}
+	}
+	if room.UsedTopics == nil {
+		room.UsedTopics = []string{}
+	}
+	if room.Comments == nil {
+		room.Comments = []string{}
+	}
+
 	// プレイヤー一覧を取得して結合
 	players, err := listPlayers(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
@@ -77,6 +88,17 @@ func getRoomByCode(ctx context.Context, args map[string]interface{}) (*Room, err
 	var room Room
 	if err := attributevalue.UnmarshalMap(result.Items[0], &room); err != nil {
 		return nil, fmt.Errorf("ルームのアンマーシャルに失敗: %w", err)
+	}
+
+	// nullの場合は空配列を設定（GraphQLスキーマでnon-nullableのため）
+	if room.TopicsPool == nil {
+		room.TopicsPool = []string{}
+	}
+	if room.UsedTopics == nil {
+		room.UsedTopics = []string{}
+	}
+	if room.Comments == nil {
+		room.Comments = []string{}
 	}
 
 	// プレイヤーと回答を結合

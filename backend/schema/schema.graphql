@@ -62,6 +62,87 @@ type JudgeResult {
   judgedAt: AWSDateTime!
 }
 
+# ===========================================
+# Subscription用の型（全フィールドnullable）
+# AppSyncのSubscription初期接続時にnullが返されるため必要
+# ===========================================
+
+type RoomSubscription {
+  roomId: ID
+  roomCode: String
+  hostId: ID
+  state: GameState
+  topic: String
+  topicsPool: [String]
+  usedTopics: [String]
+  lastJudgeResult: Boolean
+  judgedAt: AWSDateTime
+  comments: [String]
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+  players: [PlayerSubscription]
+  answers: [AnswerSubscription]
+}
+
+type PlayerSubscription {
+  playerId: ID
+  roomId: ID
+  name: String
+  role: PlayerRole
+  connected: Boolean
+  joinedAt: AWSDateTime
+}
+
+type AnswerSubscription {
+  answerId: ID
+  roomId: ID
+  playerId: ID
+  playerName: String
+  answerType: AnswerType
+  textAnswer: String
+  drawingData: String
+  submittedAt: AWSDateTime
+}
+
+type JudgeResultSubscription {
+  roomId: ID
+  isMatch: Boolean
+  judgedAt: AWSDateTime
+}
+
+# Publish用のInput型
+input PlayerInput {
+  playerId: ID!
+  roomId: ID!
+  name: String!
+  role: PlayerRole!
+  connected: Boolean!
+  joinedAt: AWSDateTime
+}
+
+input AnswerInput {
+  answerId: ID!
+  roomId: ID!
+  playerId: ID!
+  playerName: String!
+  answerType: AnswerType!
+  textAnswer: String
+  drawingData: String
+  submittedAt: AWSDateTime
+}
+
+type DeleteAllDataResponse {
+  success: Boolean!
+  message: String!
+  deletedCounts: DeletedCounts!
+}
+
+type DeletedCounts {
+  rooms: Int!
+  players: Int!
+  answers: Int!
+}
+
 # Mutations
 type Mutation {
   # ルームを作成（ホスト用）
@@ -105,18 +186,58 @@ type Mutation {
 
   # 全データを削除（開発用）
   deleteAllData: DeleteAllDataResponse!
-}
 
-type DeleteAllDataResponse {
-  success: Boolean!
-  message: String!
-  deletedCounts: DeletedCounts!
-}
+  # ===========================================
+  # Subscription用のPublish Mutations（内部用）
+  # これらはLambdaから呼び出されてSubscriptionをトリガーする
+  # ===========================================
 
-type DeletedCounts {
-  rooms: Int!
-  players: Int!
-  answers: Int!
+  # プレイヤー参加をPublish
+  publishPlayerJoined(
+    playerId: ID!
+    roomId: ID!
+    name: String!
+    role: PlayerRole!
+    connected: Boolean!
+    joinedAt: AWSDateTime!
+  ): PlayerSubscription!
+
+  # ルーム更新をPublish
+  publishRoomUpdated(
+    roomId: ID!
+    roomCode: String!
+    hostId: ID!
+    state: GameState!
+    topic: String
+    topicsPool: [String!]!
+    usedTopics: [String!]!
+    lastJudgeResult: Boolean
+    judgedAt: AWSDateTime
+    comments: [String!]
+    createdAt: AWSDateTime!
+    updatedAt: AWSDateTime!
+    players: [PlayerInput!]!
+    answers: [AnswerInput!]!
+  ): RoomSubscription!
+
+  # 回答提出をPublish
+  publishAnswerSubmitted(
+    answerId: ID!
+    roomId: ID!
+    playerId: ID!
+    playerName: String!
+    answerType: AnswerType!
+    textAnswer: String
+    drawingData: String
+    submittedAt: AWSDateTime!
+  ): AnswerSubscription!
+
+  # 判定結果をPublish
+  publishJudgeResult(
+    roomId: ID!
+    isMatch: Boolean!
+    judgedAt: AWSDateTime!
+  ): JudgeResultSubscription!
 }
 
 # Queries
@@ -134,10 +255,27 @@ type Query {
   listAnswers(roomId: ID!): [Answer!]!
 }
 
-# Subscriptions - ポーリングベースに変更（Lambda Resolverとの互換性のため）
-# フロントエンド側で定期的にgetRoomをクエリすることで同期を実現
+# Subscriptions
+type Subscription {
+  # ルーム状態の変更を購読（ゲーム開始、判定、次ラウンド等）
+  onRoomUpdated(roomId: ID!): RoomSubscription
+    @aws_subscribe(mutations: ["publishRoomUpdated"])
+
+  # プレイヤー参加を購読
+  onPlayerJoined(roomId: ID!): PlayerSubscription
+    @aws_subscribe(mutations: ["publishPlayerJoined"])
+
+  # 回答提出を購読
+  onAnswerSubmitted(roomId: ID!): AnswerSubscription
+    @aws_subscribe(mutations: ["publishAnswerSubmitted"])
+
+  # 判定結果を購読
+  onJudgeResult(roomId: ID!): JudgeResultSubscription
+    @aws_subscribe(mutations: ["publishJudgeResult"])
+}
 
 schema {
   query: Query
   mutation: Mutation
+  subscription: Subscription
 }

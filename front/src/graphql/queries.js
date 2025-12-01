@@ -67,3 +67,76 @@ export const LIST_ANSWERS = `
     }
   }
 `
+
+// Subscriptions
+export const ON_ROOM_UPDATED = `
+  subscription OnRoomUpdated($roomId: ID!) {
+    onRoomUpdated(roomId: $roomId) {
+      roomId
+      roomCode
+      hostId
+      state
+      topic
+      topicsPool
+      usedTopics
+      lastJudgeResult
+      judgedAt
+      comments
+      createdAt
+      updatedAt
+      players {
+        playerId
+        name
+        role
+        connected
+      }
+      answers {
+        answerId
+        playerId
+        playerName
+        answerType
+        textAnswer
+        drawingData
+        submittedAt
+      }
+    }
+  }
+`
+
+export const ON_PLAYER_JOINED = `
+  subscription OnPlayerJoined($roomId: ID!) {
+    onPlayerJoined(roomId: $roomId) {
+      playerId
+      roomId
+      name
+      role
+      connected
+      joinedAt
+    }
+  }
+`
+
+export const ON_ANSWER_SUBMITTED = `
+  subscription OnAnswerSubmitted($roomId: ID!) {
+    onAnswerSubmitted(roomId: $roomId) {
+      answerId
+      roomId
+      playerId
+      playerName
+      answerType
+      textAnswer
+      drawingData
+      submittedAt
+    }
+  }
+`
+
+export const ON_JUDGE_RESULT = `
+  subscription OnJudgeResult($roomId: ID!) {
+    onJudgeResult(roomId: $roomId) {
+      roomId
+      isMatch
+      judgedAt
+    }
+  }
+`

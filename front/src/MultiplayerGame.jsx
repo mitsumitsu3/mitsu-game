@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import NicoComments from './NicoComments'
-import { GET_ROOM } from './graphql/queries'
+import { GET_ROOM, ON_ROOM_UPDATED, ON_PLAYER_JOINED, ON_ANSWER_SUBMITTED, ON_JUDGE_RESULT } from './graphql/queries'
 import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, KICK_PLAYER, DELETE_ALL_DATA } from './graphql/mutations'
 import './MultiplayerGame.css'
 
-const POLLING_INTERVAL = 3000 // 3秒ごとにポーリング
+const POLLING_INTERVAL = 30000 // 30秒ごとにポーリング（Subscriptionのフォールバック用）
 
 // Amplify GraphQL Client（IAM認証 + Cognito Identity Pool）
 const client = generateClient()
@@ -19,6 +19,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   const [showHostMenu, setShowHostMenu] = useState(false)
   const pollingIntervalRef = useRef(null)
   const lastJudgedAtRef = useRef(null)
+  const subscriptionsRef = useRef([])
 
   // ルーム情報を取得
   const fetchRoom = async () => {
@@ -66,14 +67,145 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     fetchRoom()
   }, [roomId])
 
-  // ポーリング開始（WebSocketの代わり）
+  // Subscriptionのセットアップ
   useEffect(() => {
-    // 定期的にルーム情報を取得
+    console.log('Setting up subscriptions for roomId:', roomId)
+
+    // Subscriptionを解除するヘルパー関数
+    const unsubscribeAll = () => {
+      subscriptionsRef.current.forEach(sub => {
+        if (sub && sub.unsubscribe) {
+          sub.unsubscribe()
+        }
+      })
+      subscriptionsRef.current = []
+    }
+
+    // 1. ルーム更新のSubscription（ゲーム開始、判定画面遷移、次ラウンド、終了）
+    try {
+      const roomSub = client.graphql({
+        query: ON_ROOM_UPDATED,
+        variables: { roomId }
+      }).subscribe({
+        next: (response) => {
+          console.log('onRoomUpdated RAW response:', response)
+          console.log('onRoomUpdated RAW response JSON:', JSON.stringify(response, null, 2))
+          const data = response.data
+          console.log('onRoomUpdated data:', data)
+          if (data?.onRoomUpdated) {
+            console.log('onRoomUpdated room:', data.onRoomUpdated)
+            setRoom(data.onRoomUpdated)
+          }
+        },
+        error: (err) => {
+          console.error('onRoomUpdated subscription error:', err)
+        }
+      })
+      subscriptionsRef.current.push(roomSub)
+    } catch (err) {
+      console.error('Failed to setup onRoomUpdated subscription:', err)
+    }
+
+    // 2. プレイヤー参加のSubscription
+    try {
+      const playerSub = client.graphql({
+        query: ON_PLAYER_JOINED,
+        variables: { roomId }
+      }).subscribe({
+        next: (response) => {
+          console.log('onPlayerJoined RAW response:', response)
+          console.log('onPlayerJoined RAW response JSON:', JSON.stringify(response, null, 2))
+          const data = response.data
+          console.log('onPlayerJoined data:', data)
+          if (data?.onPlayerJoined) {
+            console.log('onPlayerJoined player:', data.onPlayerJoined)
+            // 新しいプレイヤーをリストに追加
+            setRoom(prev => {
+              if (!prev) return prev
+              const playerExists = prev.players?.some(p => p.playerId === data.onPlayerJoined.playerId)
+              if (playerExists) return prev
+              return {
+                ...prev,
+                players: [...(prev.players || []), data.onPlayerJoined]
+              }
+            })
+          }
+        },
+        error: (err) => {
+          console.error('onPlayerJoined subscription error:', err)
+        }
+      })
+      subscriptionsRef.current.push(playerSub)
+    } catch (err) {
+      console.error('Failed to setup onPlayerJoined subscription:', err)
+    }
+
+    // 3. 回答提出のSubscription
+    try {
+      const answerSub = client.graphql({
+        query: ON_ANSWER_SUBMITTED,
+        variables: { roomId }
+      }).subscribe({
+        next: ({ data }) => {
+          console.log('onAnswerSubmitted received:', data)
+          if (data?.onAnswerSubmitted) {
+            // 新しい回答をリストに追加
+            setRoom(prev => {
+              if (!prev) return prev
+              const answerExists = prev.answers?.some(a => a.answerId === data.onAnswerSubmitted.answerId)
+              if (answerExists) return prev
+              return {
+                ...prev,
+                answers: [...(prev.answers || []), data.onAnswerSubmitted]
+              }
+            })
+          }
+        },
+        error: (err) => {
+          console.error('onAnswerSubmitted subscription error:', err)
+        }
+      })
+      subscriptionsRef.current.push(answerSub)
+    } catch (err) {
+      console.error('Failed to setup onAnswerSubmitted subscription:', err)
+    }
+
+    // 4. 判定結果のSubscription
+    try {
+      const judgeSub = client.graphql({
+        query: ON_JUDGE_RESULT,
+        variables: { roomId }
+      }).subscribe({
+        next: ({ data }) => {
+          console.log('onJudgeResult received:', data)
+          if (data?.onJudgeResult) {
+            // 判定結果を反映
+            setRoom(prev => {
+              if (!prev) return prev
+              return {
+                ...prev,
+                lastJudgeResult: data.onJudgeResult.isMatch,
+                judgedAt: data.onJudgeResult.judgedAt
+              }
+            })
+          }
+        },
+        error: (err) => {
+          console.error('onJudgeResult subscription error:', err)
+        }
+      })
+      subscriptionsRef.current.push(judgeSub)
+    } catch (err) {
+      console.error('Failed to setup onJudgeResult subscription:', err)
+    }
+
+    // フォールバック：ポーリング（Subscriptionが動作しない場合の保険）
     pollingIntervalRef.current = setInterval(() => {
       fetchRoom()
     }, POLLING_INTERVAL)
 
     return () => {
+      unsubscribeAll()
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
       }

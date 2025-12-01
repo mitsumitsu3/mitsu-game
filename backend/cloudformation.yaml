@@ -217,6 +217,14 @@ Resources:
       LambdaConfig:
         LambdaFunctionArn: !GetAtt ResolverFunction.Arn
 
+  # None Data Source (Subscription用)
+  NoneDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: NoneDataSource
+      Type: NONE
+
   # ===========================================
   # IAM Roles
   # ===========================================
@@ -262,6 +270,16 @@ Resources:
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         - 'arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess'
+      Policies:
+        - PolicyName: AppSyncPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'appsync:GraphQL'
+                Resource:
+                  - !Sub 'arn:aws:appsync:${AWS::Region}:${AWS::AccountId}:apis/${AppSyncApi.ApiId}/*'
 
   # ===========================================
   # Lambda Function
@@ -286,6 +304,7 @@ Resources:
           PLAYER_TABLE: !Ref PlayerTable
           ANSWER_TABLE: !Ref AnswerTable
           OPENAI_API_KEY: !Ref OpenAIApiKey
+          APPSYNC_ENDPOINT: !GetAtt AppSyncApi.GraphQLUrl
       Timeout: 30
 
   # ===========================================
@@ -439,6 +458,143 @@ Resources:
       TypeName: Query
       FieldName: listAnswers
       DataSourceName: !GetAtt LambdaDataSource.Name
+
+  # ===========================================
+  # Resolvers - Publish Mutations (NONE DataSource)
+  # これらはLambdaから呼び出されてSubscriptionをトリガーする
+  # ===========================================
+
+  PublishPlayerJoinedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: publishPlayerJoined
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  PublishRoomUpdatedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: publishRoomUpdated
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  PublishAnswerSubmittedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: publishAnswerSubmitted
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  PublishJudgeResultResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: publishJudgeResult
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  # ===========================================
+  # Resolvers - Subscriptions
+  # ===========================================
+
+  OnRoomUpdatedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Subscription
+      FieldName: onRoomUpdated
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  OnPlayerJoinedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Subscription
+      FieldName: onPlayerJoined
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  OnAnswerSubmittedResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Subscription
+      FieldName: onAnswerSubmitted
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
+
+  OnJudgeResultResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Subscription
+      FieldName: onJudgeResult
+      DataSourceName: !GetAtt NoneDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "payload": $util.toJson($context.arguments)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($context.result)
 
 # ===========================================
 # Outputs

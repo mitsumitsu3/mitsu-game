@@ -55,7 +55,7 @@ fi
 go mod tidy
 
 # ARM64 Linux用にビルド（Lambda provided.al2023 + arm64）
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap main.go
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap .
 
 cd ..
 
