@@ -161,35 +161,31 @@ func startJudging(ctx context.Context, args map[string]interface{}) (*Room, erro
 	roomID := args["roomId"].(string)
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	// 状態をJUDGINGに更新
+	// 状態をJUDGINGに更新（コメントはまだ空）
 	_, err := ddbClient.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(roomTable),
 		Key: map[string]types.AttributeValue{
 			"roomId": &types.AttributeValueMemberS{Value: roomID},
 		},
-		UpdateExpression: aws.String("SET #state = :state, #updatedAt = :updatedAt"),
+		UpdateExpression: aws.String("SET #state = :state, #comments = :emptyComments, #judgedAt = :null, #updatedAt = :updatedAt"),
 		ExpressionAttributeNames: map[string]string{
 			"#state":     "state",
+			"#comments":  "comments",
+			"#judgedAt":  "judgedAt",
 			"#updatedAt": "updatedAt",
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":state":     &types.AttributeValueMemberS{Value: "JUDGING"},
-			":updatedAt": &types.AttributeValueMemberS{Value: now},
+			":state":         &types.AttributeValueMemberS{Value: "JUDGING"},
+			":emptyComments": &types.AttributeValueMemberL{Value: []types.AttributeValue{}},
+			":null":          &types.AttributeValueMemberNULL{Value: true},
+			":updatedAt":     &types.AttributeValueMemberS{Value: now},
 		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	// ニコニコ風コメントを生成
-	log.Println("コメントを生成中...")
-	_, err = generateJudgingComments(ctx, args)
-	if err != nil {
-		log.Printf("警告: コメント生成に失敗: %v", err)
-	}
-	log.Println("コメント生成完了")
-
-	// 更新後のルーム情報を取得してPublish
+	// 更新後のルーム情報を取得してPublish（即座に画面遷移させる）
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
 		return nil, err
@@ -200,10 +196,12 @@ func startJudging(ctx context.Context, args map[string]interface{}) (*Room, erro
 		log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
 	}
 
+	log.Println("判定画面に遷移完了。コメントはgenerateJudgingCommentsで別途生成されます。")
 	return updatedRoom, nil
 }
 
 // generateJudgingComments - 判定用コメントを生成
+// startJudgingの後にフロントエンドから呼び出される
 func generateJudgingComments(ctx context.Context, args map[string]interface{}) (*JudgeResult, error) {
 	roomID := args["roomId"].(string)
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -218,7 +216,7 @@ func generateJudgingComments(ctx context.Context, args map[string]interface{}) (
 	}
 
 	// コメントを生成
-	log.Println("コメントを非同期生成中...")
+	log.Println("コメントを生成中...")
 	topic := ""
 	if room.Topic != nil {
 		topic = *room.Topic
@@ -249,6 +247,18 @@ func generateJudgingComments(ctx context.Context, args map[string]interface{}) (
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
+	}
+
+	log.Println("コメント生成完了、Subscription通知を送信...")
+
+	// 更新後のルーム情報を取得してPublish（コメントを含む）
+	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		log.Printf("警告: ルーム情報の取得に失敗: %v", err)
+	} else {
+		if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
+			log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
+		}
 	}
 
 	return &JudgeResult{

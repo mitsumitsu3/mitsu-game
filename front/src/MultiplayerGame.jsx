@@ -506,12 +506,22 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                       onClick={async () => {
                         setLoading(true)
                         try {
-                          // 判定画面に遷移（コメント生成は裏で非同期実行される）
+                          // 判定画面に遷移（即座に画面遷移）
                           await client.graphql({
                             query: START_JUDGING,
                             variables: { roomId }
                           })
                           await fetchRoom()
+
+                          // コメント生成を非同期で開始（awaitしない）
+                          client.graphql({
+                            query: GENERATE_JUDGING_COMMENTS,
+                            variables: { roomId }
+                          }).then(() => {
+                            console.log('コメント生成完了')
+                          }).catch(err => {
+                            console.error('コメント生成に失敗:', err)
+                          })
                         } catch (err) {
                           console.error('Failed to start judging:', err)
                           setError('判定画面への移動に失敗しました')
