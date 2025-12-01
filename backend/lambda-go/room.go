@@ -209,6 +209,17 @@ func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) 
 	}
 
 	log.Printf("プレイヤー追放完了: kickedPlayerId=%s", kickedPlayerID)
+
+	// 更新後のルーム情報を取得してPublish
+	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		log.Printf("警告: ルーム情報の取得に失敗: %v", err)
+	} else if updatedRoom != nil {
+		if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
+			log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
+		}
+	}
+
 	return true, nil
 }
 

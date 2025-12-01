@@ -94,6 +94,15 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
           console.log('onRoomUpdated data:', data)
           if (data?.onRoomUpdated) {
             console.log('onRoomUpdated room:', data.onRoomUpdated)
+            // 自分がルームから追放されていないか確認
+            const myPlayerExists = data.onRoomUpdated.players?.some(p => p.playerId === playerId)
+            if (!myPlayerExists) {
+              console.log('Player was kicked from room (via subscription)')
+              localStorage.removeItem('mitsu_game_session')
+              alert('ホストによりルームから追放されました。')
+              onLeave()
+              return
+            }
             setRoom(data.onRoomUpdated)
           }
         },
