@@ -30,7 +30,18 @@
    ```
    アカウント情報が表示されればOK！
 
-### ステップ2: インフラをデプロイ
+### ステップ2: バックエンドをデプロイ
+
+```bash
+cd backend
+OPENAI_API_KEY='your-openai-api-key' ./deploy-backend.sh
+```
+
+⏱️ 5-10分程度かかります。完了すると以下が表示されます：
+- GraphQL Endpoint
+- Identity Pool ID
+
+### ステップ3: インフラをデプロイ
 
 ```bash
 cd infrastructure
@@ -42,7 +53,7 @@ cd infrastructure
 - CloudFront Distribution ID
 - WebサイトURL
 
-### ステップ3: フロントエンドをデプロイ
+### ステップ4: フロントエンドをデプロイ
 
 ```bash
 # infrastructureディレクトリで実行
@@ -51,13 +62,9 @@ cd infrastructure
 
 ⏱️ 2-3分程度かかります。
 
-### ステップ4: アクセス
+### ステップ5: アクセス
 
 表示されたURLにブラウザでアクセスしてください！
-
-```
-例: https://d1234567890abc.cloudfront.net
-```
 
 ## 🎮 ローカルで開発する場合
 
@@ -73,8 +80,10 @@ cd infrastructure
 
 3. **環境変数を設定**
    ```bash
-   # front/.env ファイルを作成
-   echo "VITE_OPENAI_API_KEY=your-openai-api-key" > .env
+   # front/.env ファイルを作成（バックエンドデプロイ後に自動生成されている場合あり）
+   VITE_GRAPHQL_ENDPOINT=https://xxxxx.appsync-api.ap-northeast-1.amazonaws.com/graphql
+   VITE_IDENTITY_POOL_ID=ap-northeast-1:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   VITE_AWS_REGION=ap-northeast-1
    ```
 
 4. **開発サーバーを起動**
@@ -86,6 +95,27 @@ cd infrastructure
    ```
    http://localhost:5173
    ```
+
+## 🔧 Lambda関数の更新
+
+コードを変更した後：
+
+```bash
+cd backend/lambda-go
+
+# ビルド（arm64必須）
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap .
+
+# デプロイ
+rm -f ../lambda-go.zip
+zip -j ../lambda-go.zip bootstrap
+aws s3 cp ../lambda-go.zip s3://mitsu-game-deploy-ap-northeast-1/lambda-go.zip
+aws lambda update-function-code \
+  --function-name mitsu-game-resolver \
+  --s3-bucket mitsu-game-deploy-ap-northeast-1 \
+  --s3-key lambda-go.zip \
+  --region ap-northeast-1
+```
 
 ## ⚠️ よくあるエラー
 
@@ -106,6 +136,18 @@ aws configure
 - CloudFormationFullAccess
 - AmazonS3FullAccess
 - CloudFrontFullAccess
+- AWSLambda_FullAccess
+- AmazonDynamoDBFullAccess
+- AWSAppSyncAdministrator
+
+### エラー: `exit status 126`
+
+**原因**: Lambda関数のビルドアーキテクチャが間違っています
+
+**解決方法**: `GOARCH=arm64`でビルドしてください
+```bash
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap .
+```
 
 ### エラー: `Stack already exists`
 
@@ -126,12 +168,16 @@ export STACK_NAME="my-unique-stack-name"
 source infrastructure/.deploy-config
 aws s3 rm "s3://$BUCKET_NAME/" --recursive
 
-# スタックを削除
-aws cloudformation delete-stack --stack-name "$STACK_NAME"
+# フロントエンドスタックを削除
+aws cloudformation delete-stack --stack-name mitsu-game-stack
+
+# バックエンドスタックを削除
+aws cloudformation delete-stack --stack-name mitsu-game-backend-stack
 ```
 
 ## 📚 さらに詳しく知りたい
 
 - 詳細なデプロイ手順: `infrastructure/README.md`
+- バックエンド詳細: `backend/README.md`
 - プロジェクト全体の説明: `README.md`
 - 開発者向け情報: `CLAUDE.md`

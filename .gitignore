@@ -5,7 +5,9 @@ backend/lambda/node_modules/
 
 # Environment variables
 .env
+.env.*
 front/.env
+front/.env.*
 backend/lambda/.env
 
 # Build outputs
