@@ -5,6 +5,7 @@ function NicoComments({ comments, judgedAt }) {
   const [activeComments, setActiveComments] = useState([])
   const [isPlaying, setIsPlaying] = useState(false)
   const intervalRef = useRef(null)
+  const playedJudgedAtRef = useRef(null) // 再生済みのjudgedAtを記録
 
   // judgedAtが変わったときに新しいコメント再生を開始
   useEffect(() => {
@@ -12,18 +13,33 @@ function NicoComments({ comments, judgedAt }) {
       return
     }
 
-    console.log('Starting new comment stream for judgedAt:', judgedAt, 'comments:', comments.length)
+    // 既に再生済みのjudgedAtなら何もしない（judgedAtのみで判定）
+    if (playedJudgedAtRef.current === judgedAt) {
+      console.log('Skipping duplicate comment stream for judgedAt:', judgedAt)
+      return
+    }
 
-    // 既存の再生中のコメント表示は継続（activeCommentsはクリアしない）
-    // 新しいコメント再生を開始
+    console.log('Starting new comment stream for judgedAt:', judgedAt, 'comments:', comments.length)
+    playedJudgedAtRef.current = judgedAt
+
+    // 既存のインターバルをクリア
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+    }
+
+    // 既存のコメントをクリアして新しく開始
+    setActiveComments([])
     setIsPlaying(true)
     let commentIndex = 0
 
+    // commentsをローカル変数にキャプチャして使用
+    const commentsToPlay = [...comments]
+
     intervalRef.current = setInterval(() => {
-      if (commentIndex < comments.length) {
+      if (commentIndex < commentsToPlay.length) {
         const newComment = {
           id: Date.now() + commentIndex,
-          text: comments[commentIndex],
+          text: commentsToPlay[commentIndex],
           top: Math.random() * 70 + 10, // 10% ~ 80%の位置にランダム配置
         }
         setActiveComments(prev => [...prev, newComment])
@@ -41,7 +57,7 @@ function NicoComments({ comments, judgedAt }) {
         clearInterval(intervalRef.current)
       }
     }
-  }, [judgedAt]) // judgedAtが変わったときのみ実行
+  }, [judgedAt]) // judgedAtのみで判定（commentsは依存配列から除外）
 
   // 古いコメントを削除（アニメーション終了後）
   useEffect(() => {

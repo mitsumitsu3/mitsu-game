@@ -188,13 +188,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         next: ({ data }) => {
           console.log('onJudgeResult received:', data)
           if (data?.onJudgeResult) {
-            // 判定結果を反映
+            // 判定結果を反映（lastJudgeResultのみ更新、judgedAtは更新しない）
+            // judgedAtはコメント生成完了時に設定されるもので、判定時には変更しない
             setRoom(prev => {
               if (!prev) return prev
               return {
                 ...prev,
-                lastJudgeResult: data.onJudgeResult.isMatch,
-                judgedAt: data.onJudgeResult.judgedAt
+                lastJudgeResult: data.onJudgeResult.isMatch
               }
             })
           }
@@ -222,12 +222,30 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
   }, [roomId])
 
   // 判定結果が更新されたら演出を表示
+  // ただし、初回ロード時（リロード含む）は演出をスキップ
+  const isInitialLoadRef = useRef(true)
+
   useEffect(() => {
     console.log('Checking for judge result:', {
       judgedAt: room?.judgedAt,
       lastJudgedAt: lastJudgedAtRef.current,
-      lastJudgeResult: room?.lastJudgeResult
+      lastJudgeResult: room?.lastJudgeResult,
+      isInitialLoad: isInitialLoadRef.current
     })
+
+    // 初回ロード時はjudgedAtを記録するだけで演出はスキップ
+    if (isInitialLoadRef.current && room?.judgedAt) {
+      console.log('Initial load - skipping overlay, recording judgedAt')
+      lastJudgedAtRef.current = room.judgedAt
+      isInitialLoadRef.current = false
+      return
+    }
+
+    // 初回ロードが完了したらフラグを下げる
+    if (isInitialLoadRef.current && room) {
+      isInitialLoadRef.current = false
+    }
+
     if (room?.judgedAt && room.judgedAt !== lastJudgedAtRef.current) {
       console.log('Showing result overlay!')
       lastJudgedAtRef.current = room.judgedAt
@@ -239,7 +257,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         setShowResultOverlay(false)
       }, 3000)
     }
-  }, [room?.judgedAt])
+  }, [room?.judgedAt, room])
 
 
   // ゲーム開始（バックエンドで10個のお題を生成）

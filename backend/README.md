@@ -16,19 +16,18 @@
 │   (GraphQL)     │    ※ユーザー登録不要のゲストアクセス
 └────────┬────────┘
          │
-    ┌────┴────┐
-    ↓         ↓
-┌────────┐ ┌────────────┐
-│ Lambda │ │    NONE    │ ← Publish Mutations
-│  (Go)  │ │ DataSource │   (Subscription用)
-└───┬────┘ └────────────┘
-    │
-    ↓
+         ↓
 ┌─────────────────┐
-│   DynamoDB      │ ← 3つのテーブル
-│  (Rooms/Players │    - mitsu-game-rooms
-│   /Answers)     │    - mitsu-game-players
-└─────────────────┘    - mitsu-game-answers
+│     Lambda      │
+│      (Go)       │
+└────────┬────────┘
+         │
+         ↓
+┌─────────────────┐
+│    DynamoDB     │ ← mitsu-game-rooms
+│                 │    mitsu-game-players
+│                 │    mitsu-game-answers
+└─────────────────┘
 ```
 
 ## ファイル構成
