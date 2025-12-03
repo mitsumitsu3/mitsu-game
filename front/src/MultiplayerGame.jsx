@@ -67,9 +67,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     fetchRoom()
   }, [roomId])
 
-  // Subscriptionのセットアップ
+  // Subscriptionのセットアップ（roomがロードされてから）
   useEffect(() => {
-    console.log('Setting up subscriptions for roomId:', roomId)
+    if (!room?.roomCode) {
+      console.log('Waiting for room data before setting up subscriptions')
+      return
+    }
+    console.log('Setting up subscriptions for roomId:', roomId, 'roomCode:', room.roomCode)
 
     // Subscriptionを解除するヘルパー関数
     const unsubscribeAll = () => {
@@ -115,11 +119,11 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
       console.error('Failed to setup onRoomUpdated subscription:', err)
     }
 
-    // 2. プレイヤー参加のSubscription
+    // 2. プレイヤー参加のSubscription（roomCodeでフィルタ）
     try {
       const playerSub = client.graphql({
         query: ON_PLAYER_JOINED,
-        variables: { roomId }
+        variables: { roomCode: room?.roomCode }
       }).subscribe({
         next: (response) => {
           console.log('onPlayerJoined RAW response:', response)
@@ -219,7 +223,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
         clearInterval(pollingIntervalRef.current)
       }
     }
-  }, [roomId])
+  }, [roomId, room?.roomCode])
 
   // 判定結果が更新されたら演出を表示
   // ただし、初回ロード時（リロード含む）は演出をスキップ

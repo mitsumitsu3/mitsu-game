@@ -105,6 +105,7 @@ func joinRoom(ctx context.Context, args map[string]interface{}) (*Player, error)
 	player := Player{
 		PlayerID:  playerID,
 		RoomID:    room.RoomID,
+		RoomCode:  roomCode, // Subscriptionフィルタ用にroomCodeを含める
 		Name:      playerName,
 		Role:      "PLAYER", // 一般プレイヤー
 		Connected: true,
@@ -122,11 +123,6 @@ func joinRoom(ctx context.Context, args map[string]interface{}) (*Player, error)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("プレイヤーの作成に失敗: %w", err)
-	}
-
-	// Subscription用にPublish
-	if err := PublishPlayerJoined(ctx, &player); err != nil {
-		log.Printf("警告: PublishPlayerJoinedに失敗: %v", err)
 	}
 
 	return &player, nil
@@ -151,7 +147,7 @@ func leaveRoom(ctx context.Context, args map[string]interface{}) (bool, error) {
 }
 
 // kickPlayer - プレイヤーを追放（ホストのみ）
-func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) {
+func kickPlayer(ctx context.Context, args map[string]interface{}) (*Room, error) {
 	roomID := args["roomId"].(string)
 	playerID := args["playerId"].(string)
 	kickedPlayerID := args["kickedPlayerId"].(string)
@@ -161,20 +157,20 @@ func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) 
 	// ルーム情報を取得してホストか確認
 	room, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if room == nil {
-		return false, fmt.Errorf("ルームが見つかりません")
+		return nil, fmt.Errorf("ルームが見つかりません")
 	}
 
 	// ホストのみ追放可能
 	if room.HostID != playerID {
-		return false, fmt.Errorf("ホストのみがプレイヤーを追放できます")
+		return nil, fmt.Errorf("ホストのみがプレイヤーを追放できます")
 	}
 
 	// 自分自身は追放できない
 	if playerID == kickedPlayerID {
-		return false, fmt.Errorf("自分自身を追放することはできません")
+		return nil, fmt.Errorf("自分自身を追放することはできません")
 	}
 
 	// プレイヤーを削除
@@ -185,7 +181,7 @@ func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) 
 		},
 	})
 	if err != nil {
-		return false, fmt.Errorf("プレイヤーの削除に失敗: %w", err)
+		return nil, fmt.Errorf("プレイヤーの削除に失敗: %w", err)
 	}
 
 	// 追放されたプレイヤーの回答も削除
@@ -210,17 +206,13 @@ func kickPlayer(ctx context.Context, args map[string]interface{}) (bool, error) 
 
 	log.Printf("プレイヤー追放完了: kickedPlayerId=%s", kickedPlayerID)
 
-	// 更新後のルーム情報を取得してPublish
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
-		log.Printf("警告: ルーム情報の取得に失敗: %v", err)
-	} else if updatedRoom != nil {
-		if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-			log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
-		}
+		return nil, fmt.Errorf("ルーム情報の取得に失敗: %w", err)
 	}
 
-	return true, nil
+	return updatedRoom, nil
 }
 
 // deleteAllData - 全データを削除（開発用）

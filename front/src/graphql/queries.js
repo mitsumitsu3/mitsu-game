@@ -15,6 +15,7 @@ export const GET_ROOM = `
       updatedAt
       players {
         playerId
+        roomCode
         name
         role
         connected
@@ -86,6 +87,7 @@ export const ON_ROOM_UPDATED = `
       updatedAt
       players {
         playerId
+        roomCode
         name
         role
         connected
@@ -104,10 +106,11 @@ export const ON_ROOM_UPDATED = `
 `
 
 export const ON_PLAYER_JOINED = `
-  subscription OnPlayerJoined($roomId: ID!) {
-    onPlayerJoined(roomId: $roomId) {
+  subscription OnPlayerJoined($roomCode: String!) {
+    onPlayerJoined(roomCode: $roomCode) {
       playerId
       roomId
+      roomCode
       name
       role
       connected

@@ -70,15 +70,10 @@ func startGame(ctx context.Context, args map[string]interface{}) (*Room, error) 
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	// 更新後のルーム情報を取得してPublish
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
 		return nil, err
-	}
-
-	// Subscription用にPublish
-	if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-		log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
 	}
 
 	return updatedRoom, nil
@@ -147,11 +142,6 @@ func submitAnswer(ctx context.Context, args map[string]interface{}) (*Answer, er
 		return nil, fmt.Errorf("回答の作成に失敗: %w", err)
 	}
 
-	// Subscription用にPublish
-	if err := PublishAnswerSubmitted(ctx, &answer); err != nil {
-		log.Printf("警告: PublishAnswerSubmittedに失敗: %v", err)
-	}
-
 	return &answer, nil
 }
 
@@ -185,15 +175,10 @@ func startJudging(ctx context.Context, args map[string]interface{}) (*Room, erro
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	// 更新後のルーム情報を取得してPublish（即座に画面遷移させる）
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
 		return nil, err
-	}
-
-	// Subscription用にPublish
-	if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-		log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
 	}
 
 	log.Println("判定画面に遷移完了。コメントはgenerateJudgingCommentsで別途生成されます。")
@@ -202,7 +187,7 @@ func startJudging(ctx context.Context, args map[string]interface{}) (*Room, erro
 
 // generateJudgingComments - 判定用コメントを生成
 // startJudgingの後にフロントエンドから呼び出される
-func generateJudgingComments(ctx context.Context, args map[string]interface{}) (*JudgeResult, error) {
+func generateJudgingComments(ctx context.Context, args map[string]interface{}) (*Room, error) {
 	roomID := args["roomId"].(string)
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -249,23 +234,15 @@ func generateJudgingComments(ctx context.Context, args map[string]interface{}) (
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	log.Println("コメント生成完了、Subscription通知を送信...")
+	log.Println("コメント生成完了")
 
-	// 更新後のルーム情報を取得してPublish（コメントを含む）
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
-		log.Printf("警告: ルーム情報の取得に失敗: %v", err)
-	} else {
-		if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-			log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
-		}
+		return nil, fmt.Errorf("ルーム情報の取得に失敗: %w", err)
 	}
 
-	return &JudgeResult{
-		RoomID:   roomID,
-		Comments: comments,
-		JudgedAt: now,
-	}, nil
+	return updatedRoom, nil
 }
 
 // judgeAnswers - 判定結果を保存
@@ -298,18 +275,11 @@ func judgeAnswers(ctx context.Context, args map[string]interface{}) (*JudgeResul
 
 	log.Println("DynamoDB更新完了")
 
-	result := &JudgeResult{
+	return &JudgeResult{
 		RoomID:   roomID,
 		IsMatch:  isMatch,
 		JudgedAt: now,
-	}
-
-	// Subscription用にPublish
-	if err := PublishJudgeResult(ctx, result); err != nil {
-		log.Printf("警告: PublishJudgeResultに失敗: %v", err)
-	}
-
-	return result, nil
+	}, nil
 }
 
 // nextRound - 次のラウンドに進む
@@ -392,15 +362,10 @@ func nextRound(ctx context.Context, args map[string]interface{}) (*Room, error) 
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	// 更新後のルーム情報を取得してPublish
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
 		return nil, err
-	}
-
-	// Subscription用にPublish
-	if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-		log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
 	}
 
 	return updatedRoom, nil
@@ -432,15 +397,10 @@ func endGame(ctx context.Context, args map[string]interface{}) (*Room, error) {
 		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
 	}
 
-	// 更新後のルーム情報を取得してPublish
+	// 更新後のルーム情報を取得して返す
 	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
 	if err != nil {
 		return nil, err
-	}
-
-	// Subscription用にPublish
-	if err := PublishRoomUpdated(ctx, updatedRoom); err != nil {
-		log.Printf("警告: PublishRoomUpdatedに失敗: %v", err)
 	}
 
 	return updatedRoom, nil

@@ -52,6 +52,10 @@ func getRoom(ctx context.Context, args map[string]interface{}) (*Room, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 各プレイヤーにroomCodeを設定（Subscriptionフィルタ用）
+	for i := range players {
+		players[i].RoomCode = room.RoomCode
+	}
 	room.Players = players
 
 	// 回答一覧を取得して結合
@@ -105,6 +109,10 @@ func getRoomByCode(ctx context.Context, args map[string]interface{}) (*Room, err
 	players, err := listPlayers(ctx, map[string]interface{}{"roomId": room.RoomID})
 	if err != nil {
 		return nil, err
+	}
+	// 各プレイヤーにroomCodeを設定（Subscriptionフィルタ用）
+	for i := range players {
+		players[i].RoomCode = room.RoomCode
 	}
 	room.Players = players
 

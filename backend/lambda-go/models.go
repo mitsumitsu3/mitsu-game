@@ -43,6 +43,7 @@ type Room struct {
 type Player struct {
 	PlayerID  string `json:"playerId" dynamodbav:"playerId"`   // プレイヤーID（UUID）
 	RoomID    string `json:"roomId" dynamodbav:"roomId"`       // 所属ルームID
+	RoomCode  string `json:"roomCode" dynamodbav:"-"`          // ルームコード（Subscriptionフィルタ用、DBには保存しない）
 	Name      string `json:"name" dynamodbav:"name"`           // プレイヤー名
 	Role      string `json:"role" dynamodbav:"role"`           // 役割（HOST/PLAYER）
 	Connected bool   `json:"connected" dynamodbav:"connected"` // 接続状態
