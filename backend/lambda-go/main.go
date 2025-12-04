@@ -104,6 +104,8 @@ func handler(ctx context.Context, event AppSyncEvent) (interface{}, error) {
 		return judgeAnswers(ctx, event.Arguments)
 	case "nextRound":
 		return nextRound(ctx, event.Arguments)
+	case "skipTopic":
+		return skipTopic(ctx, event.Arguments)
 	case "endGame":
 		return endGame(ctx, event.Arguments)
 

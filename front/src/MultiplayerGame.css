@@ -253,7 +253,6 @@
 }
 
 .white-outline-button {
-  flex: 1;
   background-color: transparent;
   color: white;
   border: 3px solid white;

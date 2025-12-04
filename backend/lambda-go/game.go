@@ -371,6 +371,95 @@ func nextRound(ctx context.Context, args map[string]interface{}) (*Room, error) 
 	return updatedRoom, nil
 }
 
+// skipTopic - お題をスキップして次のお題に進む（回答画面で使用）
+// 回答はクリアせず、お題のみを次に進める
+func skipTopic(ctx context.Context, args map[string]interface{}) (*Room, error) {
+	roomID := args["roomId"].(string)
+	log.Printf("お題スキップ: roomId=%s", roomID)
+
+	// ルーム情報を取得
+	room, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		return nil, err
+	}
+	if room == nil {
+		return nil, fmt.Errorf("ルームが見つかりません")
+	}
+
+	// 現在のお題を使用済みに追加（スキップしたお題も使用済みとする）
+	topicsPool := room.TopicsPool
+	usedTopics := room.UsedTopics
+
+	// お題プールが少なくなったら追加生成
+	if len(topicsPool) <= 3 {
+		log.Println("お題プールが少なくなったため、追加生成中...")
+		newTopics, err := generateTopics(usedTopics)
+		if err != nil {
+			return nil, fmt.Errorf("お題の生成に失敗: %w", err)
+		}
+		log.Printf("追加生成されたお題: %v", newTopics)
+		topicsPool = append(topicsPool, newTopics...)
+	}
+
+	// 次のお題を取得
+	nextTopic := topicsPool[0]
+	remainingTopics := topicsPool[1:]
+	usedTopics = append(usedTopics, nextTopic)
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// 回答を削除（スキップ時は回答もクリアする）
+	answers, err := listAnswers(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		return nil, err
+	}
+	for _, answer := range answers {
+		_, err := ddbClient.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+			TableName: aws.String(answerTable),
+			Key: map[string]types.AttributeValue{
+				"answerId": &types.AttributeValueMemberS{Value: answer.AnswerID},
+			},
+		})
+		if err != nil {
+			log.Printf("警告: 回答の削除に失敗 %s: %v", answer.AnswerID, err)
+		}
+	}
+
+	// ルームを更新（お題のみ変更、状態はANSWERINGのまま）
+	_, err = ddbClient.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(roomTable),
+		Key: map[string]types.AttributeValue{
+			"roomId": &types.AttributeValueMemberS{Value: roomID},
+		},
+		UpdateExpression: aws.String("SET #topic = :topic, #topicsPool = :topicsPool, #usedTopics = :usedTopics, #updatedAt = :updatedAt"),
+		ExpressionAttributeNames: map[string]string{
+			"#topic":      "topic",
+			"#topicsPool": "topicsPool",
+			"#usedTopics": "usedTopics",
+			"#updatedAt":  "updatedAt",
+		},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":topic":      &types.AttributeValueMemberS{Value: nextTopic},
+			":topicsPool": marshalStringList(remainingTopics),
+			":usedTopics": marshalStringList(usedTopics),
+			":updatedAt":  &types.AttributeValueMemberS{Value: now},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ルームの更新に失敗: %w", err)
+	}
+
+	log.Printf("お題をスキップしました。新しいお題: %s", nextTopic)
+
+	// 更新後のルーム情報を取得して返す
+	updatedRoom, err := getRoom(ctx, map[string]interface{}{"roomId": roomID})
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedRoom, nil
+}
+
 // endGame - ゲームを終了
 func endGame(ctx context.Context, args map[string]interface{}) (*Room, error) {
 	roomID := args["roomId"].(string)

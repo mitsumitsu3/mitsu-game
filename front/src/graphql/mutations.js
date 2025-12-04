@@ -201,6 +201,41 @@ export const NEXT_ROUND = `
   }
 `
 
+export const SKIP_TOPIC = `
+  mutation SkipTopic($roomId: ID!) {
+    skipTopic(roomId: $roomId) {
+      roomId
+      roomCode
+      hostId
+      state
+      topic
+      topicsPool
+      usedTopics
+      lastJudgeResult
+      judgedAt
+      comments
+      createdAt
+      updatedAt
+      players {
+        playerId
+        roomCode
+        name
+        role
+        connected
+      }
+      answers {
+        answerId
+        playerId
+        playerName
+        answerType
+        textAnswer
+        drawingData
+        submittedAt
+      }
+    }
+  }
+`
+
 export const END_GAME = `
   mutation EndGame($roomId: ID!) {
     endGame(roomId: $roomId) {

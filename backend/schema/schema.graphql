@@ -113,6 +113,9 @@ type Mutation {
   # 次のラウンドへ（ホストのみ）
   nextRound(roomId: ID!): Room!
 
+  # お題をスキップ（ホストのみ）- 回答画面で使用
+  skipTopic(roomId: ID!): Room!
+
   # ゲームを終了（ホストのみ）
   endGame(roomId: ID!): Room!
 
@@ -140,7 +143,7 @@ type Query {
 type Subscription {
   # ルーム状態の変更を購読（ゲーム開始、判定、次ラウンド等）
   onRoomUpdated(roomId: ID!): Room
-    @aws_subscribe(mutations: ["startGame", "startJudging", "generateJudgingComments", "nextRound", "endGame", "kickPlayer"])
+    @aws_subscribe(mutations: ["startGame", "startJudging", "generateJudgingComments", "nextRound", "skipTopic", "endGame", "kickPlayer"])
 
   # プレイヤー参加を購読（joinRoomはroomCodeで呼ばれるため、フィルタもroomCodeで行う）
   onPlayerJoined(roomCode: String!): Player

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { generateClient } from 'aws-amplify/api'
 import NicoComments from './NicoComments'
 import { GET_ROOM, ON_ROOM_UPDATED, ON_PLAYER_JOINED, ON_ANSWER_SUBMITTED, ON_JUDGE_RESULT } from './graphql/queries'
-import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, END_GAME, LEAVE_ROOM, KICK_PLAYER, DELETE_ALL_DATA } from './graphql/mutations'
+import { SUBMIT_ANSWER, START_JUDGING, GENERATE_JUDGING_COMMENTS, JUDGE_ANSWERS, START_GAME, NEXT_ROUND, SKIP_TOPIC, END_GAME, LEAVE_ROOM, KICK_PLAYER, DELETE_ALL_DATA } from './graphql/mutations'
 import './MultiplayerGame.css'
 
 const POLLING_INTERVAL = 30000 // 30秒ごとにポーリング（Subscriptionのフォールバック用）
@@ -353,6 +353,29 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     }
   }
 
+  // お題をスキップ（ホストのみ）
+  const skipTopic = async () => {
+    if (!confirm('このお題をスキップして次のお題に進みますか？\n※提出済みの回答はリセットされます')) {
+      return
+    }
+
+    setLoading(true)
+    setMyAnswer('')
+
+    try {
+      await client.graphql({
+        query: SKIP_TOPIC,
+        variables: { roomId }
+      })
+      await fetchRoom()
+    } catch (err) {
+      console.error('Failed to skip topic:', err)
+      setError('お題のスキップに失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const endGame = async () => {
     try {
       await client.graphql({
@@ -490,6 +513,17 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
               {!mySubmittedAnswer ? (
                 <>
                   <div className="top-buttons">
+                    {isHost && (
+                      <button
+                        onClick={skipTopic}
+                        disabled={loading}
+                        className="white-outline-button"
+                        style={{ backgroundColor: 'rgba(255, 152, 0, 0.2)', borderColor: '#ff9800' }}
+                        title="このお題をスキップして次のお題へ"
+                      >
+                        {loading ? 'スキップ中...' : 'お題スキップ'}
+                      </button>
+                    )}
                     <button
                       onClick={() => setMyAnswer('')}
                       className="white-outline-button"
@@ -532,6 +566,21 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                     <p>✓ 回答を提出しました</p>
                     <p>他のプレイヤーの回答を待っています... ({room.answers?.length}/{room.players?.length})</p>
                   </div>
+                  {isHost && (
+                    <button
+                      onClick={skipTopic}
+                      disabled={loading}
+                      className="white-outline-button"
+                      style={{
+                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                        borderColor: '#ff9800',
+                        marginBottom: '1rem'
+                      }}
+                      title="このお題をスキップして次のお題へ"
+                    >
+                      {loading ? 'スキップ中...' : 'お題スキップ'}
+                    </button>
+                  )}
                   {isHost && allAnswered && (
                     <button
                       onClick={async () => {
