@@ -41,7 +41,6 @@ backend/
 │   ├── game.go          # ゲーム進行（開始・回答・判定）
 │   ├── query.go         # データ取得
 │   ├── openai.go        # OpenAI API連携
-│   ├── appsync.go       # AppSync Subscription Publish
 │   ├── go.mod
 │   └── go.sum
 ├── schema/
@@ -223,12 +222,16 @@ subscription OnRoomUpdated {
   }
 }
 
-# プレイヤーの参加を監視
+# プレイヤーの参加を監視（roomCodeでフィルタ）
 subscription OnPlayerJoined {
-  onPlayerJoined(roomId: "xxx") {
+  onPlayerJoined(roomCode: "123456") {
     playerId
+    roomId
+    roomCode
     name
     role
+    connected
+    joinedAt
   }
 }
 
@@ -254,17 +257,50 @@ subscription OnJudgeResult {
 
 ## Subscription の仕組み
 
-LambdaリゾルバーはAppSync Subscriptionを直接トリガーできないため、以下のパターンを使用：
-
-1. Lambda が DynamoDB を更新
-2. Lambda が AppSync の Publish Mutation を HTTP で呼び出し（SigV4署名）
-3. Publish Mutation が `@aws_subscribe` でSubscriptionをトリガー
+AppSyncの `@aws_subscribe` ディレクティブを使用して、Mutationの実行結果を自動的にSubscriberへ配信します。
 
 ```
-Lambda → HTTP(SigV4) → AppSync → publishRoomUpdated → @aws_subscribe → onRoomUpdated
+Frontend → Mutation実行 → Lambda処理 → Mutation結果返却 → @aws_subscribe → Subscriber全員に配信
 ```
 
-`appsync.go` にPublish処理が実装されています。
+### 重要なポイント
+
+**Subscriptionは、トリガーとなるMutationがリクエストしたフィールドのみを受け取ります。**
+
+例えば、`onRoomUpdated` Subscriptionが `players` フィールドを期待している場合、
+トリガーとなる `startGame` Mutationも `players` フィールドをリクエストする必要があります。
+
+```graphql
+# NG: playersをリクエストしていない
+mutation StartGame {
+  startGame(roomId: "xxx") {
+    roomId
+    state
+  }
+}
+
+# OK: Subscriptionが必要とする全フィールドをリクエスト
+mutation StartGame {
+  startGame(roomId: "xxx") {
+    roomId
+    roomCode
+    state
+    players {
+      playerId
+      name
+      role
+    }
+    # ... 他の必要なフィールド
+  }
+}
+```
+
+### Subscriptionのフィルタリング
+
+- `onRoomUpdated(roomId)`: 指定したroomIdのルーム更新のみ受信
+- `onPlayerJoined(roomCode)`: 指定したroomCodeへの参加のみ受信（joinRoomのroomCode引数と一致）
+- `onAnswerSubmitted(roomId)`: 指定したroomIdの回答のみ受信
+- `onJudgeResult(roomId)`: 指定したroomIdの判定結果のみ受信
 
 ## データモデル
 
@@ -283,6 +319,7 @@ Lambda → HTTP(SigV4) → AppSync → publishRoomUpdated → @aws_subscribe →
 ### Player（プレイヤー）
 - `playerId`: プレイヤーの一意ID
 - `roomId`: 所属ルームID
+- `roomCode`: ルームコード（Subscriptionフィルタ用、DBには保存しない）
 - `name`: プレイヤー名
 - `role`: 役割（HOST/PLAYER）
 - `connected`: 接続状態
@@ -308,9 +345,15 @@ GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap .
 
 ### Subscriptionが動かない
 
-1. AppSyncコンソールでリゾルバーが設定されているか確認
-2. Lambda環境変数に`APPSYNC_ENDPOINT`が設定されているか確認
-3. Lambdaに`appsync:GraphQL`権限があるか確認
+1. **Mutationが必要なフィールドをリクエストしているか確認**
+   - Subscriptionは、トリガーMutationがリクエストしたフィールドのみ受け取る
+   - フロントエンドの `mutations.js` で全フィールドをリクエストしているか確認
+
+2. **Subscriptionの引数がMutationと一致しているか確認**
+   - 例: `onPlayerJoined(roomCode)` は `joinRoom(roomCode)` と引数名が一致している必要がある
+
+3. **AppSyncコンソールでテスト**
+   - Subscriptionを開始してからMutationを実行し、データが流れるか確認
 
 ### AppSyncコンソールでテスト
 

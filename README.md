@@ -21,8 +21,7 @@
 │   │   ├── room.go            # ルーム管理機能
 │   │   ├── game.go            # ゲーム進行管理
 │   │   ├── query.go           # データ取得機能
-│   │   ├── openai.go          # OpenAI API連携
-│   │   └── appsync.go         # AppSync Subscription Publish
+│   │   └── openai.go          # OpenAI API連携
 │   ├── schema/
 │   │   └── schema.graphql     # GraphQLスキーマ
 │   ├── cloudformation.yaml    # バックエンド用CloudFormation
@@ -144,12 +143,18 @@ VITE_AWS_REGION=ap-northeast-1
 
 ### バックエンド (Lambda環境変数)
 - `OPENAI_API_KEY`: OpenAI APIキー
-- `APPSYNC_ENDPOINT`: AppSync GraphQL Endpoint（Subscription用）
 
 ## 主要な機能
 
-- リアルタイムマルチプレイヤー（AppSync Subscriptions + ポーリングフォールバック）
+- リアルタイムマルチプレイヤー（AppSync Subscriptions）
 - ChatGPTによるお題自動生成
 - ニコニコ動画風コメント表示（GPTが回答を見てコメント生成）
 - 全員一致時のお祝い演出
 - プレイヤーキック機能（ホストのみ）
+
+## AppSync Subscriptions の仕組み
+
+AppSyncの `@aws_subscribe` ディレクティブを使用しており、Mutationの実行結果が自動的にSubscriberへ配信されます。
+
+**重要**: Subscriptionは、トリガーとなるMutationがリクエストしたフィールドのみを受け取ります。
+フロントエンドの `mutations.js` では、Subscriptionが必要とする全フィールドをリクエストしています。
