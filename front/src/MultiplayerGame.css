@@ -250,6 +250,7 @@
   width: 100%;
   max-width: 600px;
   flex-shrink: 0;
+  justify-content: center;
 }
 
 .white-outline-button {

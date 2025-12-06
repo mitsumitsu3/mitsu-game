@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIが変えるボードゲーム体験</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #333;
+      overflow: hidden;
+    }
+
+    .slide-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      transition: transform 0.5s ease;
+    }
+
+    .slide {
+      min-width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px;
+      background: white;
+      position: relative;
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    }
+
+    h1 {
+      font-size: 3rem;
+      color: #1a1a2e;
+      margin-bottom: 30px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    h2 {
+      font-size: 2.2rem;
+      color: #667eea;
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 1.5rem;
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .content {
+      max-width: 1100px;
+      width: 100%;
+    }
+
+    .big-text {
+      font-size: 2rem;
+      text-align: center;
+      color: #333;
+      line-height: 1.8;
+    }
+
+    .highlight {
+      background: linear-gradient(transparent 60%, #ffe066 60%);
+      padding: 0 5px;
+    }
+
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 25px 30px;
+      border-radius: 12px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      text-align: left;
+      margin: 20px 0;
+      white-space: pre-wrap;
+    }
+
+    .code-block .keyword { color: #569cd6; }
+    .code-block .string { color: #ce9178; }
+    .code-block .comment { color: #6a9955; }
+    .code-block .type { color: #4ec9b0; }
+    .code-block .func { color: #dcdcaa; }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 20px;
+    }
+
+    .box {
+      background: #f8f9fa;
+      padding: 30px;
+      border-radius: 16px;
+      border-left: 5px solid #667eea;
+    }
+
+    .box h3 {
+      font-size: 1.4rem;
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+
+    .box p, .box li {
+      font-size: 1.15rem;
+      line-height: 1.8;
+      color: #444;
+    }
+
+    .box ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .box li {
+      padding: 6px 0;
+    }
+
+    .box li::before {
+      content: '▸ ';
+      color: #764ba2;
+    }
+
+    .cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 1.1rem;
+    }
+
+    .cost-table th, .cost-table td {
+      padding: 15px 20px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .cost-table th {
+      background: #667eea;
+      color: white;
+    }
+
+    .cost-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+
+    .cost-table .total {
+      font-weight: bold;
+      background: #e8f4e8 !important;
+    }
+
+    .highlight-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 50px;
+      border-radius: 16px;
+      margin: 30px 0;
+      text-align: center;
+    }
+
+    .highlight-box h3 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+
+    .highlight-box p {
+      font-size: 1.3rem;
+      opacity: 0.95;
+    }
+
+    .flow-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+
+    .flow-step {
+      background: white;
+      border: 3px solid #667eea;
+      border-radius: 16px;
+      padding: 20px 25px;
+      text-align: center;
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+      min-width: 140px;
+    }
+
+    .flow-step .number {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border-radius: 50%;
+      line-height: 36px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .flow-step h4 {
+      font-size: 1.1rem;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .flow-step p {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .arrow {
+      font-size: 1.5rem;
+      color: #667eea;
+    }
+
+    .architecture-box {
+      background: #f8f9fa;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .arch-row {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    .arch-item {
+      background: white;
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      min-width: 120px;
+    }
+
+    .arch-item.frontend { border: 3px solid #61dafb; }
+    .arch-item.appsync { border: 3px solid #ff9900; }
+    .arch-item.lambda { border: 3px solid #ff9900; }
+    .arch-item.dynamo { border: 3px solid #4053d6; }
+    .arch-item.openai { border: 3px solid #10a37f; }
+
+    .arch-item h4 {
+      font-size: 1rem;
+      margin-bottom: 3px;
+    }
+
+    .arch-item p {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .arch-arrow {
+      font-size: 1.2rem;
+      color: #999;
+    }
+
+    /* AWS構成図用スタイル */
+    .arch-box {
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+      min-width: 110px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .arch-box.user-box {
+      background: linear-gradient(135deg, #64748b, #475569);
+      padding: 15px 30px;
+    }
+
+    .arch-box.aws-box {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+    }
+
+    .arch-box.external-box {
+      background: linear-gradient(135deg, #10a37f, #059669);
+    }
+
+    .arch-line {
+      text-align: center;
+      color: #666;
+      font-size: 1rem;
+      margin: 8px 0;
+    }
+
+    .nico-demo {
+      background: #333;
+      padding: 30px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      height: 180px;
+    }
+
+    .nico-comment {
+      position: absolute;
+      white-space: nowrap;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      animation: flow 8s linear infinite;
+    }
+
+    .nico-comment:nth-child(1) { top: 15px; animation-delay: 0s; color: #ff6b6b; }
+    .nico-comment:nth-child(2) { top: 50px; animation-delay: 1s; color: #4ecdc4; }
+    .nico-comment:nth-child(3) { top: 85px; animation-delay: 2s; color: #ffe66d; }
+    .nico-comment:nth-child(4) { top: 120px; animation-delay: 0.5s; color: #95e1d3; }
+
+    @keyframes flow {
+      from { right: -100%; }
+      to { right: 120%; }
+    }
+
+    .point-list {
+      font-size: 1.3rem;
+      line-height: 2.2;
+    }
+
+    .point-list li {
+      margin-bottom: 10px;
+    }
+
+    .strikethrough {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    .navigation {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      z-index: 100;
+    }
+
+    .nav-btn {
+      background: rgba(102, 126, 234, 0.9);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 1.1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .nav-btn:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+    }
+
+    .nav-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .slide-indicator {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+    }
+
+    .indicator {
+      width: 10px;
+      height: 10px;
+      background: rgba(102, 126, 234, 0.3);
+      border-radius: 50%;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .indicator.active {
+      background: #667eea;
+      transform: scale(1.3);
+    }
+
+    .slide-number {
+      position: absolute;
+      bottom: 20px;
+      right: 30px;
+      font-size: 0.9rem;
+      color: #999;
+    }
+
+    .small-text {
+      font-size: 1rem;
+      color: #666;
+      margin-top: 15px;
+    }
+
+    .quote-box {
+      background: #fff3cd;
+      border-left: 5px solid #ffc107;
+      padding: 20px 30px;
+      margin: 20px 0;
+      font-size: 1.2rem;
+      font-style: italic;
+    }
+
+    .three-column {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 25px;
+      margin-top: 20px;
+    }
+
+    .feature-card {
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ed 100%);
+      padding: 25px;
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .feature-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+
+    .feature-card h4 {
+      font-size: 1.2rem;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 1rem;
+      color: #666;
+    }
+
+    /* ========== 印刷用スタイル ========== */
+    @media print {
+      /* 基本設定 */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      body {
+        background: white !important;
+        overflow: visible !important;
+      }
+
+      /* スライドコンテナを縦並びに */
+      .slide-container {
+        display: block !important;
+        transform: none !important;
+        width: auto !important;
+      }
+
+      /* 各スライドを1ページに */
+      .slide {
+        min-width: auto !important;
+        width: 100% !important;
+        height: 100vh !important;
+        page-break-after: always;
+        page-break-inside: avoid;
+        break-after: page;
+        break-inside: avoid;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 40px !important;
+        box-sizing: border-box;
+      }
+
+      /* 最後のスライドは改ページなし */
+      .slide:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      /* ナビゲーション系を非表示 */
+      .navigation,
+      .slide-indicator,
+      .nav-btn {
+        display: none !important;
+      }
+
+      /* スライド番号を印刷用に調整 */
+      .slide-number {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        font-size: 0.8rem;
+      }
+
+      /* コンテンツの調整 */
+      .content {
+        max-width: 100% !important;
+      }
+
+      h1 {
+        font-size: 2.5rem !important;
+      }
+
+      h2 {
+        font-size: 1.8rem !important;
+        margin-bottom: 25px !important;
+      }
+
+      /* コードブロックの調整 */
+      .code-block {
+        font-size: 0.75rem !important;
+        padding: 15px !important;
+      }
+
+      /* SVG構成図の調整 */
+      svg {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+
+      /* 影を軽くする（印刷時の見やすさ） */
+      .feature-card,
+      .box,
+      .highlight-box {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+      }
+    }
+
+    /* A4横向き用の追加調整 */
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide-container" id="slideContainer">
+
+    <!-- スライド1: タイトル -->
+    <div class="slide">
+      <h1>AIが変えるボードゲーム体験</h1>
+      <p class="subtitle">〜 「認識合わせゲーム」の紹介と技術解説 〜</p>
+      <div class="small-text" style="margin-top: 40px;">mitsu</div>
+      <span class="slide-number">1</span>
+    </div>
+
+    <!-- スライド2: デモ導入 -->
+    <div class="slide">
+      <h2>まずはデモンストレーション</h2>
+      <div class="content">
+        <div class="big-text">
+          <p>AIを活用した<br>みんなで遊べるゲームを自作しました</p>
+        </div>
+        <div class="highlight-box" style="margin-top: 40px;">
+          <h3>認識合わせゲーム</h3>
+          <p>2人以上の複数人で遊ぶ想定</p>
+        </div>
+        <div class="flow-container" style="margin-top: 30px;">
+          <div class="flow-step">
+            <div class="number">1</div>
+            <h4>お題が出る</h4>
+            <p>AIが生成</p>
+          </div>
+          <span class="arrow">→</span>
+          <div class="flow-step">
+            <div class="number">2</div>
+            <h4>各自回答</h4>
+            <p>自分の画面で</p>
+          </div>
+          <span class="arrow">→</span>
+          <div class="flow-step">
+            <div class="number">3</div>
+            <h4>一致判定</h4>
+            <p>全員一致でクリア</p>
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">2</span>
+    </div>
+
+    <!-- スライド3: ニコニコ風演出 -->
+    <div class="slide">
+      <h2>ニコニコ動画風コメント演出</h2>
+      <div class="content">
+        <p style="font-size: 1.2rem; text-align: center; margin-bottom: 20px; color: #666;">
+          AIが結果を見てコメントを生成 → 観戦者がたくさんいる風
+        </p>
+        <div class="nico-demo">
+          <div class="nico-comment">おおお全員一致！！</div>
+          <div class="nico-comment">さすがwww</div>
+          <div class="nico-comment">それなー</div>
+          <div class="nico-comment">考えることは同じか</div>
+        </div>
+      </div>
+      <span class="slide-number">3</span>
+    </div>
+
+    <!-- スライド4: なぜ作ったか -->
+    <div class="slide">
+      <h2>なぜ自作したのか</h2>
+      <div class="content">
+        <div class="quote-box">
+          似たようなゲームは既にある。<br>
+          でも6人以上は<strong>500円の課金</strong>が必要（20人まで永久）
+        </div>
+        <div class="two-column" style="margin-top: 30px;">
+          <div class="box">
+            <h3>問題</h3>
+            <ul>
+              <li>会社のみんなでやるとしたら20じゃ足りない</li>
+              <li>へーしゃはこれから10000000人くらいになるのに</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>考えたこと</h3>
+            <ul>
+              <li>インフラを考えて組めば...</li>
+              <li>500円よりコスト抑えられるのでは？</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <h3>目標: 一生分プレイしても500円を超えない！</h3>
+        </div>
+      </div>
+      <span class="slide-number">4</span>
+    </div>
+
+    <!-- スライド5: なぜサーバーレスか -->
+    <div class="slide">
+      <h2>インフラはAWSのサーバーレスを選定</h2>
+      <div class="content">
+        <div class="quote-box" style="margin-bottom: 30px;">
+          半年に1回、数時間だけ使うゲーム...<br>
+          <strong>サーバー常時稼働はもったいなすぎる！</strong>
+        </div>
+        <div class="two-column">
+          <div class="box" style="border-color: #dc3545;">
+            <h3 style="color: #dc3545;">❌ 従来型サーバー</h3>
+            <ul>
+              <li>EC2やVPSを常時起動</li>
+              <li>使ってない時間も課金</li>
+              <li>月額 1,000〜5,000円</li>
+              <li>年間 12,000〜60,000円...</li>
+            </ul>
+            <p style="margin-top: 15px; color: #dc3545; font-weight: bold;">
+              → 遊ばない間もお金が溶ける
+            </p>
+          </div>
+          <div class="box" style="border-color: #28a745;">
+            <h3 style="color: #28a745;">✅ サーバーレス</h3>
+            <ul>
+              <li>Lambda + DynamoDB + AppSync</li>
+              <li><strong>使った分だけ課金</strong></li>
+              <li>遊ばない月は 0円</li>
+              <li>イニシャルコスト 0円</li>
+            </ul>
+            <p style="margin-top: 15px; color: #28a745; font-weight: bold;">
+              → 遊んだ時だけお金がかかる
+            </p>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 25px;">
+          <h3>サーバーレスなら、イニシャルコスト0円からスタート！</h3>
+        </div>
+      </div>
+      <span class="slide-number">5</span>
+    </div>
+
+    <!-- スライド6: コスト試算（ChatGPT詳細） -->
+    <div class="slide">
+      <h2>コスト試算① ChatGPT (GPT-4o-mini)</h2>
+      <div class="content">
+        <p style="font-size: 1.1rem; color: #666; margin-bottom: 15px;">
+          半年に1回、1〜2時間、最大30ラウンド程度 → 一生で約100回プレイと仮定
+        </p>
+        <div class="two-column">
+          <div class="box">
+            <h3>① お題生成（1プレイ1回）</h3>
+            <ul style="font-size: 1rem;">
+              <li>入力: システムプロンプト約1,200文字 + ユーザープロンプト約80文字</li>
+              <li>出力: お題10個 × 各20〜30文字 (max_tokens: 600)</li>
+              <li style="color: #667eea;"><strong>→ 約2,000 tokens/回</strong></li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>② コメント生成（毎ラウンド）</h3>
+            <ul style="font-size: 1rem;">
+              <li>入力: プロンプト約400文字 + 回答5人分</li>
+              <li>出力: コメント30個 × 各5〜15文字 (max_tokens: 1,000)</li>
+              <li style="color: #667eea;"><strong>→ 約700 tokens/回</strong></li>
+            </ul>
+          </div>
+        </div>
+        <table class="cost-table" style="margin-top: 20px;">
+          <tr>
+            <th>項目</th>
+            <th>計算</th>
+            <th>トークン数</th>
+          </tr>
+          <tr>
+            <td>お題生成</td>
+            <td>2,000 tokens × 1回</td>
+            <td>2,000</td>
+          </tr>
+          <tr>
+            <td>コメント生成</td>
+            <td>700 tokens × 30ラウンド</td>
+            <td>21,000</td>
+          </tr>
+          <tr class="total">
+            <td colspan="2">1プレイ合計</td>
+            <td><strong>23,000 tokens</strong></td>
+          </tr>
+        </table>
+      </div>
+      <span class="slide-number">6</span>
+    </div>
+
+    <!-- スライド7: コスト試算（ChatGPT計算） -->
+    <div class="slide">
+      <h2>コスト試算① ChatGPT 一生分コスト</h2>
+      <div class="content">
+        <div class="box" style="max-width: 700px; margin: 0 auto 25px;">
+          <h3>GPT-4o-mini 料金体系</h3>
+          <ul>
+            <li>入力: <strong>$0.15 / 1M tokens</strong></li>
+            <li>出力: <strong>$0.60 / 1M tokens</strong></li>
+            <li>入力の方が多いため、平均 $0.4〜0.5/M が現実的</li>
+            <li style="color: #667eea;">→ 安全側に倒して <strong>$0.5/M tokens</strong> で計算</li>
+          </ul>
+        </div>
+        <table class="cost-table">
+          <tr>
+            <th>項目</th>
+            <th>計算</th>
+            <th>結果</th>
+          </tr>
+          <tr>
+            <td>1プレイのトークン数</td>
+            <td>お題2,000 + コメント21,000</td>
+            <td>23,000 tokens</td>
+          </tr>
+          <tr>
+            <td>一生分（100回プレイ）</td>
+            <td>23,000 × 100回</td>
+            <td>2,300,000 tokens (2.3M)</td>
+          </tr>
+          <tr class="total">
+            <td>GPT-4o-mini コスト</td>
+            <td>2.3M × $0.5/M × 150円</td>
+            <td><strong>約 172円</strong></td>
+          </tr>
+        </table>
+      </div>
+      <span class="slide-number">7</span>
+    </div>
+
+    <!-- スライド8: コスト試算（AWS詳細） -->
+    <div class="slide">
+      <h2>コスト試算② AWS インフラ</h2>
+      <div class="content">
+        <p style="font-size: 1.1rem; color: #666; margin-bottom: 15px;">
+          一生で約10万リクエスト + 5万分接続と仮定（100プレイ × 各1,000リクエスト程度）
+        </p>
+        <table class="cost-table">
+          <tr>
+            <th>サービス</th>
+            <th>料金体系</th>
+            <th>一生分コスト</th>
+          </tr>
+          <tr>
+            <td><strong>DynamoDB</strong></td>
+            <td>読取: $0.25/100万, 書込: $1.25/100万</td>
+            <td>約 10円</td>
+          </tr>
+          <tr>
+            <td><strong>AppSync</strong></td>
+            <td>クエリ: $4.00/100万, リアルタイム: $2.00/100万分</td>
+            <td>約 75円</td>
+          </tr>
+          <tr>
+            <td><strong>Lambda</strong></td>
+            <td>無料枠: 月100万リクエスト</td>
+            <td>0円</td>
+          </tr>
+          <tr>
+            <td><strong>S3 + CloudFront</strong></td>
+            <td>S3: $0.025/GB, CF: $0.114/GB</td>
+            <td>約 15円</td>
+          </tr>
+          <tr class="total">
+            <td colspan="2">AWS 合計</td>
+            <td><strong>約 100円</strong></td>
+          </tr>
+        </table>
+      </div>
+      <span class="slide-number">8</span>
+    </div>
+
+    <!-- スライド9: コスト試算（まとめ） -->
+    <div class="slide">
+      <h2>コスト試算③ 一生分まとめ</h2>
+      <div class="content">
+        <table class="cost-table" style="max-width: 700px; margin: 0 auto;">
+          <tr>
+            <th>項目</th>
+            <th>コスト</th>
+          </tr>
+          <tr>
+            <td>ChatGPT (GPT-4o-mini)</td>
+            <td>約 172円</td>
+          </tr>
+          <tr>
+            <td>DynamoDB</td>
+            <td>約 10円</td>
+          </tr>
+          <tr>
+            <td>AppSync</td>
+            <td>約 75円</td>
+          </tr>
+          <tr>
+            <td>Lambda</td>
+            <td>0円（無料枠内）</td>
+          </tr>
+          <tr>
+            <td>S3 + CloudFront</td>
+            <td>約 15円</td>
+          </tr>
+          <tr>
+            <td>人件費</td>
+            <td>ほぼ0円</td>
+          </tr>
+          <tr class="total">
+            <td>合計</td>
+            <td><strong>約 270円</strong></td>
+          </tr>
+        </table>
+        <div class="highlight-box" style="margin-top: 30px;">
+          <h3>✅ 目標達成！ 270円 &lt; 500円</h3>
+          <p>一生分プレイしても、既存サービスの課金額の半分程度！</p>
+        </div>
+      </div>
+      <span class="slide-number">9</span>
+    </div>
+
+    <!-- スライド10: 技術スタック -->
+    <div class="slide">
+      <h2>技術スタック</h2>
+      <div class="content">
+        <div class="three-column">
+          <div class="feature-card">
+            <div class="icon">🖥️</div>
+            <h4>フロントエンド</h4>
+            <p>React + Vite<br>Amplify JS<br>S3 + CloudFront</p>
+          </div>
+          <div class="feature-card">
+            <div class="icon">⚙️</div>
+            <h4>バックエンド</h4>
+            <p>AppSync (GraphQL)<br>Lambda (Go)<br>DynamoDB</p>
+          </div>
+          <div class="feature-card">
+            <div class="icon">🤖</div>
+            <h4>AI</h4>
+            <p>OpenAI API<br>GPT-4o-mini<br>お題・コメント生成</p>
+          </div>
+        </div>
+        <div class="architecture-box" style="margin-top: 30px;">
+          <div class="arch-row">
+            <div class="arch-item frontend"><h4>React</h4><p>ブラウザ</p></div>
+          </div>
+          <div class="arch-arrow">↕️ GraphQL / WebSocket</div>
+          <div class="arch-row">
+            <div class="arch-item appsync"><h4>AppSync</h4><p>GraphQL API</p></div>
+          </div>
+          <div class="arch-arrow">↕️</div>
+          <div class="arch-row">
+            <div class="arch-item lambda"><h4>Lambda (Go)</h4><p>ロジック</p></div>
+            <div class="arch-item dynamo"><h4>DynamoDB</h4><p>データ</p></div>
+            <div class="arch-item openai"><h4>OpenAI</h4><p>AI生成</p></div>
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">10</span>
+    </div>
+
+    <!-- スライド11: AWS構成図 -->
+    <div class="slide">
+      <h2>AWS構成図</h2>
+      <div class="content">
+        <svg viewBox="0 0 800 480" style="max-width: 850px; width: 100%; height: auto;">
+          <!-- 背景 -->
+          <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+            </marker>
+            <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+            </marker>
+            <!-- ドロップシャドウ -->
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+            </filter>
+          </defs>
+
+          <!-- AWS Cloud 背景 -->
+          <rect x="50" y="100" width="700" height="360" rx="15" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="8,4"/>
+          <text x="70" y="130" fill="#0ea5e9" font-size="14" font-weight="bold">☁️ AWS Cloud</text>
+
+          <!-- ユーザー -->
+          <g filter="url(#shadow)">
+            <rect x="350" y="20" width="100" height="50" rx="8" fill="#64748b"/>
+            <text x="400" y="42" text-anchor="middle" fill="white" font-size="12" font-weight="bold">👤 ユーザー</text>
+            <text x="400" y="58" text-anchor="middle" fill="white" font-size="10">ブラウザ</text>
+          </g>
+
+          <!-- 矢印: ユーザー → CloudFront -->
+          <line x1="400" y1="70" x2="400" y2="125" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+          <text x="410" y="100" fill="#666" font-size="10">HTTPS</text>
+
+          <!-- CloudFront -->
+          <g filter="url(#shadow)">
+            <rect x="320" y="130" width="160" height="50" rx="8" fill="#8b5cf6"/>
+            <text x="400" y="152" text-anchor="middle" fill="white" font-size="12" font-weight="bold">CloudFront</text>
+            <text x="400" y="168" text-anchor="middle" fill="white" font-size="10">CDN配信</text>
+          </g>
+
+          <!-- S3 -->
+          <g filter="url(#shadow)">
+            <rect x="520" y="130" width="100" height="50" rx="8" fill="#22c55e"/>
+            <text x="570" y="152" text-anchor="middle" fill="white" font-size="12" font-weight="bold">S3</text>
+            <text x="570" y="168" text-anchor="middle" fill="white" font-size="10">静的ファイル</text>
+          </g>
+
+          <!-- 矢印: CloudFront ↔ S3 -->
+          <line x1="480" y1="155" x2="518" y2="155" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+          <!-- Cognito -->
+          <g filter="url(#shadow)">
+            <rect x="180" y="130" width="100" height="50" rx="8" fill="#ef4444"/>
+            <text x="230" y="152" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Cognito</text>
+            <text x="230" y="168" text-anchor="middle" fill="white" font-size="10">ゲスト認証</text>
+          </g>
+
+          <!-- 矢印: CloudFront → AppSync -->
+          <line x1="400" y1="180" x2="400" y2="205" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+          <!-- AppSync -->
+          <g filter="url(#shadow)">
+            <rect x="280" y="210" width="240" height="55" rx="8" fill="#e91e8c"/>
+            <text x="400" y="235" text-anchor="middle" fill="white" font-size="14" font-weight="bold">AppSync</text>
+            <text x="400" y="253" text-anchor="middle" fill="white" font-size="10">GraphQL API + Subscription</text>
+          </g>
+
+          <!-- 矢印: Cognito → AppSync -->
+          <path d="M 230 180 L 230 237 L 278 237" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+          <text x="190" y="210" fill="#666" font-size="9">IAM認証</text>
+
+          <!-- 矢印: AppSync → Lambda -->
+          <line x1="400" y1="265" x2="400" y2="305" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+          <!-- Lambda -->
+          <g filter="url(#shadow)">
+            <rect x="320" y="310" width="160" height="50" rx="8" fill="#f97316"/>
+            <text x="400" y="332" text-anchor="middle" fill="white" font-size="12" font-weight="bold">Lambda (Go)</text>
+            <text x="400" y="348" text-anchor="middle" fill="white" font-size="10">ビジネスロジック</text>
+          </g>
+
+          <!-- DynamoDB -->
+          <g filter="url(#shadow)">
+            <rect x="520" y="310" width="120" height="50" rx="8" fill="#3b82f6"/>
+            <text x="580" y="332" text-anchor="middle" fill="white" font-size="12" font-weight="bold">DynamoDB</text>
+            <text x="580" y="348" text-anchor="middle" fill="white" font-size="10">NoSQL DB</text>
+          </g>
+
+          <!-- 矢印: Lambda ↔ DynamoDB -->
+          <line x1="480" y1="335" x2="518" y2="335" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowhead-blue)"/>
+
+          <!-- OpenAI (外部) -->
+          <g filter="url(#shadow)">
+            <rect x="320" y="400" width="160" height="50" rx="8" fill="#10a37f"/>
+            <text x="400" y="422" text-anchor="middle" fill="white" font-size="12" font-weight="bold">OpenAI API</text>
+            <text x="400" y="438" text-anchor="middle" fill="white" font-size="10">GPT-4o-mini</text>
+          </g>
+
+          <!-- 矢印: Lambda → OpenAI -->
+          <line x1="400" y1="360" x2="400" y2="398" stroke="#10a37f" stroke-width="2" marker-end="url(#arrowhead)"/>
+          <text x="410" y="382" fill="#666" font-size="9">お題/コメント生成</text>
+
+          <!-- 外部ラベル -->
+          <text x="260" y="420" fill="#666" font-size="11">外部API →</text>
+
+        </svg>
+        <p class="small-text" style="text-align: center; margin-top: 10px; color: #666;">
+          フルサーバーレス構成 → 使った分だけ課金、サーバー管理不要
+        </p>
+      </div>
+      <span class="slide-number">11</span>
+    </div>
+
+    <!-- スライド12: AppSyncとは -->
+    <div class="slide">
+      <h2>AppSync とは</h2>
+      <div class="content">
+        <p class="big-text" style="margin-bottom: 30px;">サクッとAPIが作れるサービス<br><span style="font-size: 1rem; color: #666;">（API Gatewayとよく比較される）</span></p>
+        <div class="box" style="max-width: 800px; margin: 0 auto;">
+          <h3>AppSyncの特徴</h3>
+          <ul>
+            <li><strong>GraphQLベース</strong>のAPIをサポート</li>
+            <li>Lambda置かなくても、<strong>ちょっとしたロジック書いてDynamoDB連携</strong>可能</li>
+            <li>WebSocket（<strong>Subscription</strong>）で<strong>リアルタイム通信</strong>がサクッと実装できる</li>
+          </ul>
+        </div>
+        <p class="small-text" style="text-align: center; margin-top: 20px;">
+          → ゲーム的なものを作るときに重宝
+        </p>
+      </div>
+      <span class="slide-number">12</span>
+    </div>
+
+    <!-- スライド13: GraphQLとは -->
+    <div class="slide">
+      <h2>GraphQL とは</h2>
+      <div class="content">
+        <div class="quote-box">
+          数年前に「RESTに代わる新技術だ！」と広まったけど、最近あんま聞かなくなった技術
+        </div>
+        <div class="two-column" style="margin-top: 30px;">
+          <div class="box">
+            <h3>REST API</h3>
+            <ul>
+              <li>エンドポイントをたくさん用意</li>
+              <li>/users, /rooms, /answers...</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>GraphQL</h3>
+            <ul>
+              <li><strong>エンドポイントは1個だけ</strong></li>
+              <li>POSTのボディに「このデータくれ」と書く</li>
+              <li>サーバーが解釈して返す</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">13</span>
+    </div>
+
+    <!-- スライド14: スキーマ駆動開発 -->
+    <div class="slide">
+      <h2>GraphQLの良いところ: スキーマ駆動開発</h2>
+      <div class="content">
+        <div class="quote-box">
+          APIの定義書・ドキュメントに困ったことありませんか？<br>
+          更新漏れ、生成ライブラリが動かない、そのままに...
+        </div>
+        <div class="box" style="max-width: 800px; margin: 30px auto;">
+          <h3>GraphQLなら</h3>
+          <ul>
+            <li><strong>まずスキーマを定義しないと開発できない</strong></li>
+            <li>ルールを守らないとそもそも始まらない</li>
+            <li>キッチリとガードレールが引かれた開発が可能</li>
+          </ul>
+        </div>
+        <p style="font-size: 1.1rem; text-align: center; color: #666;">
+          チーム開発でドメインモデルを考えるきっかけにも → DDD と相性良い
+        </p>
+      </div>
+      <span class="slide-number">14</span>
+    </div>
+
+    <!-- スライド15: スキーマ - モデル -->
+    <div class="slide">
+      <h2>今回のスキーマ① モデル定義</h2>
+      <div class="content">
+        <div class="two-column">
+          <div class="code-block" style="font-size: 0.85rem;">
+<span class="comment"># ルーム情報</span>
+<span class="keyword">type</span> <span class="type">Room</span> {
+  roomId: <span class="type">ID!</span>
+  roomCode: <span class="type">String!</span>
+  hostId: <span class="type">ID!</span>
+  state: <span class="type">GameState!</span>
+  topic: <span class="type">String</span>
+  topicsPool: [<span class="type">String!</span>]!
+  comments: [<span class="type">String!</span>]
+  players: [<span class="type">Player!</span>]!
+  answers: [<span class="type">Answer!</span>]!
+}
+
+<span class="keyword">enum</span> <span class="type">GameState</span> {
+  <span class="string">WAITING</span>     <span class="comment"># 待機中</span>
+  <span class="string">ANSWERING</span>   <span class="comment"># 回答中</span>
+  <span class="string">JUDGING</span>     <span class="comment"># 判定中</span>
+}
+          </div>
+          <div class="code-block" style="font-size: 0.85rem;">
+<span class="comment"># プレイヤー情報</span>
+<span class="keyword">type</span> <span class="type">Player</span> {
+  playerId: <span class="type">ID!</span>
+  roomId: <span class="type">ID!</span>
+  roomCode: <span class="type">String!</span>
+  name: <span class="type">String!</span>
+  role: <span class="type">PlayerRole!</span>
+  connected: <span class="type">Boolean!</span>
+}
+
+<span class="comment"># 回答情報</span>
+<span class="keyword">type</span> <span class="type">Answer</span> {
+  answerId: <span class="type">ID!</span>
+  roomId: <span class="type">ID!</span>
+  playerId: <span class="type">ID!</span>
+  playerName: <span class="type">String!</span>
+  answerType: <span class="type">AnswerType!</span>
+  textAnswer: <span class="type">String</span>
+}
+          </div>
+        </div>
+        <p class="small-text" style="text-align: center; margin-top: 15px;">
+          言語に関係なく、まずこのデータ構造をモデリング → 各言語のライブラリで自動生成
+        </p>
+      </div>
+      <span class="slide-number">15</span>
+    </div>
+
+    <!-- スライド16: スキーマ - Query/Mutation -->
+    <div class="slide">
+      <h2>今回のスキーマ② Query / Mutation</h2>
+      <div class="content">
+        <div class="two-column">
+          <div class="code-block" style="font-size: 0.85rem;">
+<span class="comment"># データ取得</span>
+<span class="keyword">type</span> <span class="type">Query</span> {
+  <span class="comment"># ルーム情報を取得</span>
+  <span class="func">getRoom</span>(roomId: <span class="type">ID!</span>): <span class="type">Room</span>
+
+  <span class="comment"># コードからルーム取得</span>
+  <span class="func">getRoomByCode</span>(roomCode: <span class="type">String!</span>): <span class="type">Room</span>
+
+  <span class="comment"># プレイヤー一覧</span>
+  <span class="func">listPlayers</span>(roomId: <span class="type">ID!</span>): [<span class="type">Player!</span>]!
+
+  <span class="comment"># 回答一覧</span>
+  <span class="func">listAnswers</span>(roomId: <span class="type">ID!</span>): [<span class="type">Answer!</span>]!
+}
+          </div>
+          <div class="code-block" style="font-size: 0.85rem;">
+<span class="comment"># データ変更</span>
+<span class="keyword">type</span> <span class="type">Mutation</span> {
+  <span class="comment"># ルーム作成</span>
+  <span class="func">createRoom</span>(hostName: <span class="type">String!</span>): <span class="type">Room!</span>
+
+  <span class="comment"># ルーム参加</span>
+  <span class="func">joinRoom</span>(roomCode: <span class="type">String!</span>,
+           playerName: <span class="type">String!</span>): <span class="type">Player!</span>
+
+  <span class="comment"># ゲーム開始（お題生成）</span>
+  <span class="func">startGame</span>(roomId: <span class="type">ID!</span>): <span class="type">Room!</span>
+
+  <span class="comment"># 回答提出</span>
+  <span class="func">submitAnswer</span>(...): <span class="type">Answer!</span>
+
+  <span class="comment"># 判定（コメント生成）</span>
+  <span class="func">startJudging</span>(roomId: <span class="type">ID!</span>): <span class="type">Room!</span>
+
+  <span class="comment"># 次のラウンドへ</span>
+  <span class="func">nextRound</span>(roomId: <span class="type">ID!</span>): <span class="type">Room!</span>
+}
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">16</span>
+    </div>
+
+    <!-- スライド17: スキーマ - Subscription -->
+    <div class="slide">
+      <h2>今回のスキーマ③ Subscription（リアルタイム）</h2>
+      <div class="content">
+        <div class="code-block" style="font-size: 0.9rem; max-width: 900px; margin: 0 auto;">
+<span class="keyword">type</span> <span class="type">Subscription</span> {
+
+  <span class="comment"># ルーム状態の変更を購読（ゲーム開始、判定、次ラウンド等）</span>
+  <span class="func">onRoomUpdated</span>(roomId: <span class="type">ID!</span>): <span class="type">Room</span>
+    <span class="keyword">@aws_subscribe</span>(mutations: [<span class="string">"startGame"</span>, <span class="string">"startJudging"</span>, <span class="string">"nextRound"</span>, ...])
+
+  <span class="comment"># プレイヤー参加を購読</span>
+  <span class="func">onPlayerJoined</span>(roomCode: <span class="type">String!</span>): <span class="type">Player</span>
+    <span class="keyword">@aws_subscribe</span>(mutations: [<span class="string">"joinRoom"</span>])
+
+  <span class="comment"># 回答提出を購読</span>
+  <span class="func">onAnswerSubmitted</span>(roomId: <span class="type">ID!</span>): <span class="type">Answer</span>
+    <span class="keyword">@aws_subscribe</span>(mutations: [<span class="string">"submitAnswer"</span>])
+
+  <span class="comment"># 判定結果を購読</span>
+  <span class="func">onJudgeResult</span>(roomId: <span class="type">ID!</span>): <span class="type">JudgeResult</span>
+    <span class="keyword">@aws_subscribe</span>(mutations: [<span class="string">"judgeAnswers"</span>])
+}
+        </div>
+        <div class="highlight-box" style="margin-top: 25px;">
+          <h3>@aws_subscribe ディレクティブ</h3>
+          <p>指定したMutationが実行されると、自動的にSubscriberに通知される</p>
+        </div>
+      </div>
+      <span class="slide-number">17</span>
+    </div>
+
+    <!-- スライド18: AppSyncのリゾルバー -->
+    <div class="slide">
+      <h2>AppSyncのリゾルバー</h2>
+      <div class="content">
+        <p style="font-size: 1.2rem; text-align: center; margin-bottom: 25px;">
+          データの保存・取得をするロジック部分
+        </p>
+        <div class="two-column">
+          <div class="box">
+            <h3>標準サポート</h3>
+            <ul>
+              <li><strong>VTL</strong>: 独自テンプレート言語（癖が強い）</li>
+              <li><strong>JavaScript</strong>: ランタイムに制限あり</li>
+            </ul>
+            <p style="margin-top: 15px; font-size: 1rem; color: #666;">
+              → 複雑なロジックには不自由
+            </p>
+          </div>
+          <div class="box">
+            <h3>今回の選択</h3>
+            <ul>
+              <li>データソースに<strong>Lambda</strong>を指定</li>
+              <li>Lambdaは<strong>Go言語</strong>で実装</li>
+              <li>使い慣れた言語で自由に書ける</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">18</span>
+    </div>
+
+    <!-- スライド19: Lambda構成 -->
+    <div class="slide">
+      <h2>Lambda関数の構成</h2>
+      <div class="content">
+        <div class="code-block">
+<span class="comment">// main.go - エントリポイント</span>
+<span class="keyword">func</span> <span class="func">handler</span>(ctx context.Context, event <span class="type">AppSyncEvent</span>) (<span class="keyword">interface</span>{}, <span class="keyword">error</span>) {
+    <span class="keyword">switch</span> event.Info.FieldName {
+    <span class="keyword">case</span> <span class="string">"createRoom"</span>:
+        <span class="keyword">return</span> <span class="func">createRoom</span>(event)
+    <span class="keyword">case</span> <span class="string">"joinRoom"</span>:
+        <span class="keyword">return</span> <span class="func">joinRoom</span>(event)
+    <span class="keyword">case</span> <span class="string">"startGame"</span>:
+        <span class="keyword">return</span> <span class="func">startGame</span>(event)  <span class="comment">// ← お題10個をAI生成</span>
+    <span class="keyword">case</span> <span class="string">"submitAnswer"</span>:
+        <span class="keyword">return</span> <span class="func">submitAnswer</span>(event)
+    <span class="keyword">case</span> <span class="string">"startJudging"</span>:
+        <span class="keyword">return</span> <span class="func">startJudging</span>(event)  <span class="comment">// ← コメントをAI生成</span>
+    ...
+    }
+}
+        </div>
+        <p style="font-size: 1.1rem; text-align: center; color: #666;">
+          バイナリ1個ドーンと置いて、イベント名でルーティング
+        </p>
+      </div>
+      <span class="slide-number">19</span>
+    </div>
+
+    <!-- スライド20: AIによる開発 -->
+    <div class="slide">
+      <h2>開発におけるAI活用</h2>
+      <div class="content">
+        <div class="two-column">
+          <div class="box">
+            <h3>フロント: ほぼCloudCode</h3>
+            <ul>
+              <li>自分ではほぼ書いてない</li>
+              <li>あまり知らんし書くモチベもなく</li>
+              <li>全部書いてもらうと修正できなくなる問題</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>バックエンド: 自分で書いた</h3>
+            <ul>
+              <li>ChatGPTへのリクエストで間違うと大変</li>
+              <li>インフラ絡みはAIで解決できない時のインパクト大</li>
+              <li>ある程度は自分で把握しておく必要</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 30px;">
+          <h3>AIが助かった例: models.go</h3>
+          <p>スキーマから構造体をCloudCodeで書き出し<br>ライブラリ入れなくても柔軟に生成してくれる</p>
+        </div>
+      </div>
+      <span class="slide-number">20</span>
+    </div>
+
+    <!-- スライド21: AppSyncの認証 -->
+    <div class="slide">
+      <h2>AppSyncの認証問題</h2>
+      <div class="content">
+        <p style="font-size: 1.2rem; text-align: center; margin-bottom: 25px;">
+          基本的に<strong>認証通ってないとアクセス不可</strong>
+        </p>
+        <div class="three-column">
+          <div class="box" style="border-color: #dc3545;">
+            <h3 style="color: #dc3545;">APIキー</h3>
+            <ul>
+              <li>フロントに置くと見える</li>
+              <li>有効期限が最大1年</li>
+              <li style="color: #dc3545;">絶望的によろしくない</li>
+            </ul>
+          </div>
+          <div class="box" style="border-color: #dc3545;">
+            <h3 style="color: #dc3545;">Cognito</h3>
+            <ul>
+              <li>ユーザー登録が必要</li>
+              <li>パスワード設定画面が必要</li>
+              <li style="color: #dc3545;">気軽に遊んでとは言えない</li>
+            </ul>
+          </div>
+          <div class="box" style="border-color: #ffc107;">
+            <h3 style="color: #d39e00;">IAMロール</h3>
+            <ul>
+              <li>AWSサービス間の認証なら有用</li>
+              <li style="color: #d39e00;">フロントのブラウザからは使えない...</li>
+            </ul>
+          </div>
+        </div>
+        <div class="quote-box" style="margin-top: 25px;">
+          フロントのブラウザから直接AppSyncを叩きたい...<br>
+          <strong>どうすれば？？</strong>
+        </div>
+      </div>
+      <span class="slide-number">21</span>
+    </div>
+
+    <!-- スライド22: Cognito Identity Pool -->
+    <div class="slide">
+      <h2>解決策: Cognito Identity Pool</h2>
+      <div class="content">
+        <div class="two-column">
+          <div class="box" style="border-color: #28a745;">
+            <h3 style="color: #28a745;">Cognito Identity Pool とは</h3>
+            <ul>
+              <li><strong>一時的なAWS認証情報</strong>を発行</li>
+              <li>ユーザー登録<strong>不要</strong>（ゲストアクセス可）</li>
+              <li>ブラウザからAWSサービスを直接呼び出せる</li>
+              <li>発行された認証情報は短時間で失効</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h3>仕組み</h3>
+            <ul>
+              <li>Identity Pool に紐づいた<strong>IAMロール</strong>を設定</li>
+              <li>ブラウザが一時的にそのロールを引き受ける</li>
+              <li>Amplify JSがこの処理を自動でやってくれる</li>
+            </ul>
+          </div>
+        </div>
+        <div class="highlight-box" style="margin-top: 25px;">
+          <h3>これで解決！</h3>
+          <p>ユーザー登録なしで、ブラウザから安全にAppSyncにアクセス可能</p>
+        </div>
+      </div>
+      <span class="slide-number">22</span>
+    </div>
+
+    <!-- スライド23: お絵描き機能の話 -->
+    <div class="slide">
+      <h2>ボツになった機能: お絵描きモード</h2>
+      <div class="content">
+        <div class="two-column">
+          <div class="box">
+            <h3>やりたかったこと</h3>
+            <ul>
+              <li>テキストだけでなく絵でも回答</li>
+              <li>絵の内容にAIがツッコミを入れる</li>
+              <li>DynamoDBにBase64で保存</li>
+              <li>data:image形式でChatGPTに送信</li>
+            </ul>
+          </div>
+          <div class="box" style="border-color: #dc3545;">
+            <h3 style="color: #dc3545;">問題点</h3>
+            <ul>
+              <li>コメント生成に時間がかかる</li>
+              <li>画像送信は<strong>GPT-4o</strong>が必要</li>
+              <li>料金が数倍に...</li>
+              <li style="color: #dc3545;">500円超えちゃう！</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <span class="slide-number">23</span>
+    </div>
+
+    <!-- スライド24: まとめ -->
+    <div class="slide">
+      <h2>まとめ</h2>
+      <div class="content">
+        <div class="box" style="max-width: 900px; margin: 0 auto;">
+          <ul class="point-list">
+            <li><strong>AIでお題・コメント生成</strong> → ゲームに無限のバリエーション</li>
+            <li><strong>サーバーレス構成</strong> → 一生分遊んでも500円以下</li>
+            <li><strong>GraphQL + AppSync</strong> → スキーマ駆動でサクッと開発</li>
+            <li><strong>Lambda (Go)</strong> → 複雑なロジックも自由に書ける</li>
+            <li><strong>CloudCode活用</strong> → フロントはほぼAIが生成</li>
+          </ul>
+        </div>
+        <div class="highlight-box" style="margin-top: 40px;">
+          <h3>ご清聴ありがとうございました！</h3>
+          <p>質問あればいつでもどうぞ</p>
+        </div>
+      </div>
+      <span class="slide-number">24</span>
+    </div>
+
+  </div>
+
+  <div class="slide-indicator" id="slideIndicator"></div>
+
+  <div class="navigation">
+    <button class="nav-btn" id="prevBtn" onclick="prevSlide()">← 前へ</button>
+    <button class="nav-btn" id="nextBtn" onclick="nextSlide()">次へ →</button>
+  </div>
+
+  <script>
+    const container = document.getElementById('slideContainer');
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slideIndicator');
+    let currentSlide = 0;
+
+    // インジケーター生成
+    slides.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'indicator' + (i === 0 ? ' active' : '');
+      dot.onclick = () => goToSlide(i);
+      indicator.appendChild(dot);
+    });
+
+    function updateSlide() {
+      container.style.transform = `translateX(-${currentSlide * 100}vw)`;
+      document.querySelectorAll('.indicator').forEach((dot, i) => {
+        dot.className = 'indicator' + (i === currentSlide ? ' active' : '');
+      });
+      document.getElementById('prevBtn').disabled = currentSlide === 0;
+      document.getElementById('nextBtn').disabled = currentSlide === slides.length - 1;
+    }
+
+    function nextSlide() {
+      if (currentSlide < slides.length - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    function goToSlide(index) {
+      currentSlide = index;
+      updateSlide();
+    }
+
+    // キーボード操作
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    updateSlide();
+  </script>
+</body>
+</html>
