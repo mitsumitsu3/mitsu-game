@@ -29,8 +29,8 @@ func startGame(ctx context.Context, args map[string]interface{}) (*Room, error) 
 		return nil, fmt.Errorf("ルームが見つかりません")
 	}
 
-	// お題を10個生成
-	log.Println("お題を生成中...")
+	// お題を5個生成
+	log.Println("お題を5個生成中...")
 	newTopics, err := generateTopics(room.UsedTopics)
 	if err != nil {
 		return nil, fmt.Errorf("お題の生成に失敗: %w", err)
@@ -316,15 +316,15 @@ func nextRound(ctx context.Context, args map[string]interface{}) (*Room, error) 
 	topicsPool := room.TopicsPool
 	usedTopics := room.UsedTopics
 
-	// お題プールが少なくなったら追加生成
-	if len(topicsPool) <= 3 {
-		log.Println("お題プールが少なくなったため、追加生成中...")
+	// お題プールが空になったら追加生成（5個ずつ）
+	if len(topicsPool) == 0 {
+		log.Println("お題プールが空のため、5個追加生成中...")
 		newTopics, err := generateTopics(usedTopics)
 		if err != nil {
 			return nil, fmt.Errorf("お題の生成に失敗: %w", err)
 		}
 		log.Printf("追加生成されたお題: %v", newTopics)
-		topicsPool = append(topicsPool, newTopics...)
+		topicsPool = newTopics
 	}
 
 	// 次のお題を取得
@@ -390,15 +390,15 @@ func skipTopic(ctx context.Context, args map[string]interface{}) (*Room, error) 
 	topicsPool := room.TopicsPool
 	usedTopics := room.UsedTopics
 
-	// お題プールが少なくなったら追加生成
-	if len(topicsPool) <= 3 {
-		log.Println("お題プールが少なくなったため、追加生成中...")
+	// お題プールが空になったら追加生成（5個ずつ）
+	if len(topicsPool) == 0 {
+		log.Println("お題プールが空のため、5個追加生成中...")
 		newTopics, err := generateTopics(usedTopics)
 		if err != nil {
 			return nil, fmt.Errorf("お題の生成に失敗: %w", err)
 		}
 		log.Printf("追加生成されたお題: %v", newTopics)
-		topicsPool = append(topicsPool, newTopics...)
+		topicsPool = newTopics
 	}
 
 	// 次のお題を取得

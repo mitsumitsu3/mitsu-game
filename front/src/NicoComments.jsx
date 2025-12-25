@@ -50,7 +50,7 @@ function NicoComments({ comments, judgedAt }) {
         clearInterval(intervalRef.current)
         setIsPlaying(false)
       }
-    }, 1000) // 1秒ごとに1つずつ表示（30個なら30秒で全表示）
+    }, 670) // 約0.67秒ごとに1つずつ表示（30個なら約20秒で全表示）
 
     return () => {
       if (intervalRef.current) {

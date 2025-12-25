@@ -6,88 +6,175 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 )
 
-// generateTopics - OpenAI APIを使ってお題を10個生成
+// カテゴリプール - ランダムに選択してバリエーションを出す
+var categoryPool = []string{
+	"食べ物・料理・グルメ",
+	"スポーツ・運動",
+	"芸能人・有名人・タレント",
+	"アニメ・漫画・ゲーム",
+	"場所・観光地・旅行",
+	"企業・ブランド・お店",
+	"音楽・アーティスト・楽器",
+	"映画・ドラマ・テレビ番組",
+	"学校・教育・勉強",
+	"季節・イベント・行事",
+	"動物・生き物",
+	"乗り物・交通",
+	"家電・日用品・生活",
+	"ファッション・服・アクセサリー",
+	"趣味・遊び・娯楽",
+	"歴史・偉人・文化",
+	"職業・仕事",
+	"飲み物・ドリンク",
+	"お菓子・スイーツ・デザート",
+	"自然・天気・地理",
+}
+
+// generateTopics - OpenAI APIを使ってお題を5個生成（カテゴリランダム、重複チェック付き）
 func generateTopics(usedTopics []string) ([]string, error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("OPENAI_API_KEYが設定されていません")
 	}
 
-	// 使用済みお題がある場合は、重複を避けるようプロンプトに含める
-	usedTopicsText := ""
-	if len(usedTopics) > 0 {
-		usedTopicsText = fmt.Sprintf("【使用済みのお題】（これらと重複しないこと）：\n%s\n\n", strings.Join(usedTopics, "\n"))
+	// 使用済みお題をマップに変換（高速な重複チェック用）
+	usedTopicsMap := make(map[string]bool)
+	for _, t := range usedTopics {
+		usedTopicsMap[t] = true
 	}
 
-	// お題生成用のシステムプロンプト
-	systemPrompt := `「認識合わせゲーム」のお題を10個生成してください。このゲームは参加者全員が同じ答えを思いつくことが目標です。
+	var resultTopics []string
+	maxRetries := 3 // 最大3回まで追加取得を試みる
+
+	for retry := 0; retry < maxRetries && len(resultTopics) < 5; retry++ {
+		// ランダムに3つのカテゴリを選択
+		rand.Seed(time.Now().UnixNano())
+		selectedCategories := selectRandomCategories(3)
+		categoriesText := strings.Join(selectedCategories, "、")
+
+		// 使用済みお題 + 今回既に取得したお題を合わせてGPTに渡す
+		allUsedTopics := append(usedTopics, resultTopics...)
+		usedTopicsText := ""
+		if len(allUsedTopics) > 0 {
+			// 最新20個だけ渡す（プロンプトが長くなりすぎないように）
+			recentUsed := allUsedTopics
+			if len(allUsedTopics) > 20 {
+				recentUsed = allUsedTopics[len(allUsedTopics)-20:]
+			}
+			usedTopicsText = fmt.Sprintf("\n\n【使用済みのお題】（これらと同じ・似たお題は絶対に避けること）：\n%s", strings.Join(recentUsed, "\n"))
+		}
+
+		// お題生成用のシステムプロンプト（常に5個リクエスト）
+		systemPrompt := fmt.Sprintf(`「認識合わせゲーム」のお題を5個生成してください。このゲームは参加者全員が同じ答えを思いつくことが目標です。
+
+【今回のカテゴリ指定】以下のカテゴリから出題すること：
+★ %s ★
 
 【重要ルール】答えが1〜3個に収束する、具体的だが一般的なお題を作ること。
 
-【良いお題の例】（実際のゲームから）：
-- 「真夏のスポーツの定番といえば？」→ 野球、海水浴など
-- 「金持ちの家にある定番の物といえば？」→ プール、シアタールームなど
-- 「スーパーカーのメーカーといえば？」→ フェラーリ、ランボルギーニなど
-- 「卵を使った料理の定番といえば？」→ 卵焼き、目玉焼きなど
-- 「志村けんのギャグといえば？」→ アイーン、だっふんだなど
-- 「正月の遊びの定番といえば？」→ 凧揚げ、羽根つきなど
-- 「ホームセンターの定番といえば？」→ カインズ、コーナンなど
-- 「ピンクの服を着ている芸能人といえば？」→ ブルゾンちえみなど
-- 「コンビニで必ず売っている飲み物といえば？」→ お茶、コーヒーなど
-- 「日本一有名なお城といえば？」→ 姫路城、大阪城など
-- 「小学校の給食の定番メニューといえば？」→ カレー、揚げパンなど
-
 【お題の作り方】：
-1. カテゴリを1つ決める（場所、食べ物、人物、企業など）
-2. 「定番」「有名」「代表的」などで限定する
+1. 指定されたカテゴリから1つ選ぶ
+2. 「定番」「有名」「代表的」「人気」などで限定する
 3. 誰もが知ってる一般的な範囲に収める
-4. 固有名詞を指定する場合は明確に1人/1つに絞る（志村けん、ディズニーランドなど）
+4. 固有名詞を指定する場合は明確に1人/1つに絞る
 
-【絶対NGな例】：
-❌ 「有名アーティストの代表曲といえば？」→ どのアーティスト？答えが発散
-❌ 「人気アニメのキャラクターといえば？」→ どのアニメ？答えが発散
-❌ 「有名大学の学部といえば？」→ どの大学？答えが発散
-❌ 「一押しのレストランのメニューといえば？」→ どのレストラン？答えが発散
-❌ 「春といえば？」「夏といえば？」→ 抽象的すぎる
-❌ 「日本の四季といえば？」→ 抽象的すぎる
+【良いお題の例】：
+- 回転寿司の人気ネタといえば？
+- ドラえもんの道具の定番といえば？
+- 小学校の給食の定番メニューといえば？
+- 日本一有名なお城といえば？
 
-【OK例】：
-✅ 「ファミレスの定番メニューといえば？」→ ハンバーグ、パスタなど（カテゴリ全体）
-✅ 「ドラえもんの道具の定番といえば？」→ タケコプター、どこでもドアなど（固有名詞を明確に指定）
-✅ 「回転寿司の人気ネタといえば？」→ サーモン、マグロなど（カテゴリ全体）
-✅ 「冬のスポーツの定番といえば？」→ スキー、スノボなど（季節×カテゴリ）
+【NGな例】：
+- 抽象的すぎる（春といえば？）
+- 二段階限定（有名アーティストの代表曲）
+- 答えが発散する（好きな食べ物は？）%s
 
-` + usedTopicsText + `各お題を改行で区切って出力してください。番号や記号は付けないでください。`
+【出力形式】お題のみを1行ずつ出力。答えの例や説明は絶対に含めないこと。`, categoriesText, usedTopicsText)
 
-	// OpenAI APIリクエストを構築
-	reqBody := OpenAIRequest{
-		Model: "gpt-4o-mini",
-		Messages: []OpenAIMessage{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: "誰もが知ってる一般的な範囲で、答えが1〜3個に収束するお題を10個生成してください。「有名〇〇の△△」のような二段階限定は避けてください。"},
-		},
-		Temperature: 0.9, // 高めの値でバリエーションを出す
-		MaxTokens:   600,
+		// OpenAI APIリクエストを構築（常に5個リクエスト）
+		reqBody := OpenAIRequest{
+			Model: "gpt-4o-mini",
+			Messages: []OpenAIMessage{
+				{Role: "system", Content: systemPrompt},
+				{Role: "user", Content: fmt.Sprintf("【%s】のカテゴリから、お題を5個生成してください。お題のみを出力し、答えの例は含めないでください。", categoriesText)},
+			},
+			Temperature: 1.0,
+			MaxTokens:   400,
+		}
+
+		// APIを呼び出してお題を取得
+		topics, err := callOpenAI(reqBody)
+		if err != nil {
+			return nil, err
+		}
+
+		// お題をクリーンアップして重複チェック
+		for _, topic := range topics {
+			cleaned := cleanTopic(topic)
+			if cleaned == "" {
+				continue
+			}
+
+			// 重複チェック（使用済みお題）
+			if usedTopicsMap[cleaned] {
+				continue // 使用済みなのでスキップ
+			}
+
+			// 今回の結果に既にあるかチェック
+			duplicate := false
+			for _, rt := range resultTopics {
+				if rt == cleaned {
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				continue
+			}
+
+			// 重複なし、追加（5個以上でもOK）
+			resultTopics = append(resultTopics, cleaned)
+		}
 	}
 
-	// APIを呼び出してお題を取得
-	topics, err := callOpenAI(reqBody)
-	if err != nil {
-		return nil, err
-	}
+	return resultTopics, nil
+}
 
-	// 最大10個に制限
-	if len(topics) > 10 {
-		topics = topics[:10]
+// cleanTopic - お題文字列をクリーンアップ
+func cleanTopic(topic string) string {
+	// 「→」以降を削除（答えの例が含まれている場合）
+	if idx := strings.Index(topic, "→"); idx != -1 {
+		topic = strings.TrimSpace(topic[:idx])
 	}
+	// 先頭の「- 」「・」「「」を削除
+	topic = strings.TrimPrefix(topic, "- ")
+	topic = strings.TrimPrefix(topic, "・")
+	topic = strings.TrimPrefix(topic, "「")
+	topic = strings.TrimSuffix(topic, "」")
+	return strings.TrimSpace(topic)
+}
 
-	return topics, nil
+// selectRandomCategories - カテゴリプールからランダムにn個選択
+func selectRandomCategories(n int) []string {
+	// カテゴリプールをシャッフル
+	shuffled := make([]string, len(categoryPool))
+	copy(shuffled, categoryPool)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	// 先頭からn個を返す
+	if n > len(shuffled) {
+		n = len(shuffled)
+	}
+	return shuffled[:n]
 }
 
 // generateComments - ニコニコ動画風のコメントを生成

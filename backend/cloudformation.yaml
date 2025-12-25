@@ -161,38 +161,6 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-api'
 
-  # WAFv2 WebACL for rate limiting (protects AppSync)
-  AppSyncWebACL:
-    Type: AWS::WAFv2::WebACL
-    Properties:
-      Name: !Sub '${ProjectName}-appsync-waf'
-      Scope: REGIONAL
-      DefaultAction:
-        Allow: {}
-      VisibilityConfig:
-        CloudWatchMetricsEnabled: true
-        MetricName: !Sub '${ProjectName}-appsync-waf'
-        SampledRequestsEnabled: true
-      Rules:
-        - Name: RateLimitPerIp
-          Priority: 1
-          Action:
-            Block: {}
-          Statement:
-            RateBasedStatement:
-              AggregateKeyType: IP
-              Limit: 500   # ≒ 1.7 req/sec (WAFは5分窓)
-          VisibilityConfig:
-            CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${ProjectName}-rate-limit'
-            SampledRequestsEnabled: true
-
-  AppSyncWebACLAssociation:
-    Type: AWS::WAFv2::WebACLAssociation
-    Properties:
-      ResourceArn: !GetAtt AppSyncApi.Arn
-      WebACLArn: !GetAtt AppSyncWebACL.Arn
-
   # GraphQL Schema
   AppSyncSchema:
     Type: AWS::AppSync::GraphQLSchema
