@@ -1,0 +1,183 @@
+import { useState, useEffect } from 'react'
+import { generateClient } from 'aws-amplify/api'
+import MultiplayerLobby from './MultiplayerLobby'
+import MultiplayerGame from './MultiplayerGame'
+import { CREATE_ROOM, JOIN_ROOM } from './graphql/mutations'
+
+const STORAGE_KEY = 'mitsu_game_matching_session'
+
+// Amplify GraphQL Client（IAM認証 + Cognito Identity Pool）
+const client = generateClient()
+
+function MatchingGameApp({ onBack }) {
+  const [screen, setScreen] = useState('lobby') // lobby, game
+  const [multiplayerData, setMultiplayerData] = useState(null)
+  const [isHostMode, setIsHostMode] = useState(false)
+
+  // URLからルームコードを取得
+  const [initialRoomCode, setInitialRoomCode] = useState('')
+
+  // ページ読み込み時にセッションを復元 & ホストモード判定 & ルームコード取得
+  useEffect(() => {
+    // #host がURLにあればホストモードを有効化
+    setIsHostMode(window.location.hash === '#host')
+
+    // URLのクエリパラメータからルームコードを取得
+    const urlParams = new URLSearchParams(window.location.search)
+    const roomCodeFromUrl = urlParams.get('room')
+    if (roomCodeFromUrl) {
+      setInitialRoomCode(roomCodeFromUrl.toUpperCase())
+    }
+
+    const savedSession = localStorage.getItem(STORAGE_KEY)
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession)
+        console.log('Restoring session:', session)
+        setMultiplayerData(session)
+        setScreen('game')
+      } catch (err) {
+        console.error('Failed to restore session:', err)
+        localStorage.removeItem(STORAGE_KEY)
+      }
+    }
+  }, [])
+
+  // セッション情報をlocalStorageに保存
+  const saveSession = (data) => {
+    if (data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    } else {
+      localStorage.removeItem(STORAGE_KEY)
+    }
+  }
+
+  // ルームを作成
+  const handleCreateRoom = async (hostName) => {
+    try {
+      console.log('Creating room with hostName:', hostName)
+      console.log('Using Amplify with IAM auth (Cognito Identity Pool)')
+
+      const result = await client.graphql({
+        query: CREATE_ROOM,
+        variables: { hostName }
+      })
+
+      console.log('Room created successfully:', result)
+      const room = result.data.createRoom
+      const sessionData = {
+        roomId: room.roomId,
+        playerId: room.hostId,
+        playerName: hostName,
+        isHost: true
+      }
+      setMultiplayerData(sessionData)
+      saveSession(sessionData)
+      setScreen('game')
+    } catch (error) {
+      console.error('Failed to create room:', error)
+
+      // エラーの詳細を展開して表示
+      if (error.errors && error.errors.length > 0) {
+        console.error('GraphQL Errors:')
+        error.errors.forEach((err, index) => {
+          console.error(`Error ${index + 1}:`, {
+            message: err.message,
+            errorType: err.errorType,
+            path: err.path,
+            locations: err.locations,
+            errorInfo: err.errorInfo
+          })
+        })
+      }
+
+      console.error('Full error object:', JSON.stringify(error, null, 2))
+
+      const errorMessage = error.errors?.[0]?.message || error.message || 'Unknown error'
+      throw new Error('ルームの作成に失敗しました: ' + errorMessage)
+    }
+  }
+
+  // ルームに参加
+  const handleJoinRoom = async (roomCode, playerName) => {
+    try {
+      const result = await client.graphql({
+        query: JOIN_ROOM,
+        variables: { roomCode, playerName }
+      })
+
+      const player = result.data.joinRoom
+      const sessionData = {
+        roomId: player.roomId,
+        playerId: player.playerId,
+        playerName: playerName,
+        isHost: false
+      }
+      setMultiplayerData(sessionData)
+      saveSession(sessionData)
+      setScreen('game')
+    } catch (error) {
+      console.error('Failed to join room:', error)
+      const errorMessage = error.errors?.[0]?.message || error.message || 'Unknown error'
+      throw new Error('ルームへの参加に失敗しました: ' + errorMessage)
+    }
+  }
+
+  // ゲームから退出
+  const handleLeaveGame = () => {
+    saveSession(null) // セッションを削除
+    setScreen('lobby')
+    setMultiplayerData(null)
+  }
+
+  // ゲーム選択に戻る
+  const handleBackToGameSelect = () => {
+    saveSession(null)
+    onBack()
+  }
+
+  return (
+    <>
+      {screen === 'lobby' && (
+        <div>
+          <button
+            onClick={handleBackToGameSelect}
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              left: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              zIndex: 100
+            }}
+          >
+            ← ゲーム選択に戻る
+          </button>
+          <MultiplayerLobby
+            onCreateRoom={handleCreateRoom}
+            onJoinRoom={handleJoinRoom}
+            isHostMode={isHostMode}
+            initialRoomCode={initialRoomCode}
+          />
+        </div>
+      )}
+
+      {screen === 'game' && multiplayerData && (
+        <MultiplayerGame
+          roomId={multiplayerData.roomId}
+          playerId={multiplayerData.playerId}
+          playerName={multiplayerData.playerName}
+          isHost={multiplayerData.isHost}
+          onLeave={handleLeaveGame}
+        />
+      )}
+    </>
+  )
+}
+
+export default MatchingGameApp

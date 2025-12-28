@@ -420,6 +420,26 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
     }
   }
 
+  // テスト用：30人分のモックデータを生成
+  const generateMockAnswers = () => {
+    const mockAnswers = []
+    const sampleAnswers = ['りんご', 'バナナ', 'みかん', 'ぶどう', 'いちご', 'メロン', 'スイカ', 'もも', 'なし', 'かき']
+    for (let i = 1; i <= 30; i++) {
+      mockAnswers.push({
+        answerId: `mock-${i}`,
+        playerId: `player-${i}`,
+        playerName: `プレイヤー${i}`,
+        textAnswer: sampleAnswers[i % sampleAnswers.length]
+      })
+    }
+    setRoom(prev => ({
+      ...prev,
+      state: 'JUDGING',
+      topic: '【テスト】好きな果物は？',
+      answers: mockAnswers
+    }))
+  }
+
   const deleteAllData = async () => {
     if (!confirm('本当に全てのデータを削除しますか？この操作は取り消せません。')) {
       return
@@ -480,6 +500,43 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
 
               {isHost ? (
                 <>
+                  {/* 招待URL表示 */}
+                  <div style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '12px',
+                    padding: '1rem 1.5rem',
+                    marginBottom: '1.5rem',
+                    maxWidth: '400px',
+                    width: '90%'
+                  }}>
+                    <p style={{ margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.9rem' }}>
+                      招待URL（タップでコピー）
+                    </p>
+                    <div
+                      onClick={() => {
+                        const shareUrl = `${window.location.origin}/matching-game?room=${room.roomCode}`
+                        navigator.clipboard.writeText(shareUrl)
+                          .then(() => alert('招待URLをコピーしました！'))
+                          .catch(() => alert('コピーに失敗しました'))
+                      }}
+                      style={{
+                        backgroundColor: '#f0f0f0',
+                        borderRadius: '8px',
+                        padding: '0.8rem',
+                        cursor: 'pointer',
+                        wordBreak: 'break-all',
+                        fontSize: '0.85rem',
+                        color: '#333',
+                        border: '2px dashed #ccc'
+                      }}
+                    >
+                      {`${window.location.origin}/matching-game?room=${room.roomCode}`}
+                    </div>
+                    <p style={{ margin: '0.5rem 0 0 0', color: '#888', fontSize: '0.8rem' }}>
+                      参加者: {room.players?.length || 0}人
+                    </p>
+                  </div>
+
                   <button
                     onClick={startGame}
                     disabled={loading || room.players?.length < 2}
@@ -497,6 +554,13 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
                     style={{ backgroundColor: '#dc2626', marginTop: '2rem' }}
                   >
                     {loading ? '削除中...' : '全データ削除（開発用）'}
+                  </button>
+                  <button
+                    onClick={generateMockAnswers}
+                    className="black-button"
+                    style={{ backgroundColor: '#9333ea', marginTop: '0.5rem' }}
+                  >
+                    30人テスト（開発用）
                   </button>
                 </>
               ) : (
@@ -753,7 +817,7 @@ function MultiplayerGame({ roomId, playerId, playerName, isHost, onLeave }) {
               <button
                 className="share-button"
                 onClick={() => {
-                  const shareUrl = `${window.location.origin}${window.location.pathname}?room=${room.roomCode}`
+                  const shareUrl = `${window.location.origin}/matching-game?room=${room.roomCode}`
                   navigator.clipboard.writeText(shareUrl)
                     .then(() => alert('招待URLをコピーしました！'))
                     .catch(() => alert('コピーに失敗しました'))

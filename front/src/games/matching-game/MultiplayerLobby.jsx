@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './MultiplayerLobby.css'
 
 function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode, initialRoomCode = '' }) {
@@ -7,6 +7,13 @@ function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode, initialRoomCod
   const [roomCode, setRoomCode] = useState(initialRoomCode)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // initialRoomCodeが変わったときにroomCodeを更新
+  useEffect(() => {
+    if (initialRoomCode) {
+      setRoomCode(initialRoomCode)
+    }
+  }, [initialRoomCode])
 
   const handleCreateRoom = async (e) => {
     e.preventDefault()
@@ -46,8 +53,11 @@ function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode, initialRoomCod
     }
   }
 
-  // ホストモードでない場合、モード選択をスキップして参加画面へ
-  if (!mode && !isHostMode) {
+  // ルームコードがURLで指定されている場合は参加画面へ（ゲストモード）
+  // それ以外はホストモード（作成/参加を選択可能）
+  const isGuestMode = initialRoomCode && initialRoomCode.length > 0
+
+  if (!mode && isGuestMode) {
     return (
       <div className="multiplayer-lobby">
         <h2>ルームに参加</h2>
@@ -93,11 +103,11 @@ function MultiplayerLobby({ onCreateRoom, onJoinRoom, isHostMode, initialRoomCod
     )
   }
 
-  // ホストモードの場合のみモード選択を表示
-  if (!mode && isHostMode) {
+  // ホストモード（ルームコードがURLにない場合）
+  if (!mode && !isGuestMode) {
     return (
       <div className="multiplayer-lobby">
-        <h2>ホストモード</h2>
+        <h2>一致させゲーム</h2>
         <div className="lobby-buttons">
           <button
             className="lobby-button create-button"

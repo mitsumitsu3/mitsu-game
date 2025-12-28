@@ -1,164 +1,72 @@
 import { useState, useEffect } from 'react'
-import { generateClient } from 'aws-amplify/api'
-import MultiplayerLobby from './MultiplayerLobby'
-import MultiplayerGame from './MultiplayerGame'
-import { CREATE_ROOM, JOIN_ROOM } from './graphql/mutations'
+import GameSelect from './GameSelect'
+import MatchingGameApp from './games/matching-game/MatchingGameApp'
 import './App.css'
 
-const STORAGE_KEY = 'mitsu_game_session'
-
-// Amplify GraphQL Client（IAM認証 + Cognito Identity Pool）
-const client = generateClient()
-
 function App() {
-  const [screen, setScreen] = useState('lobby') // lobby, game
-  const [multiplayerData, setMultiplayerData] = useState(null)
-  const [isHostMode, setIsHostMode] = useState(false)
+  const [selectedGame, setSelectedGame] = useState(null)
 
-  // URLからルームコードを取得
-  const [initialRoomCode, setInitialRoomCode] = useState('')
-
-  // ページ読み込み時にセッションを復元 & ホストモード判定 & ルームコード取得
+  // URLパスとクエリパラメータからゲームを判定
   useEffect(() => {
-    // #host がURLにあればホストモードを有効化
-    setIsHostMode(window.location.hash === '#host')
+    const path = window.location.pathname
 
-    // URLのクエリパラメータからルームコードを取得
-    const urlParams = new URLSearchParams(window.location.search)
-    const roomCodeFromUrl = urlParams.get('room')
-    if (roomCodeFromUrl) {
-      setInitialRoomCode(roomCodeFromUrl.toUpperCase())
+    // /matching-game または /matching-game?room=XXXX の場合
+    if (path === '/matching-game' || path === '/matching-game/') {
+      setSelectedGame('matching-game')
     }
-
-    const savedSession = localStorage.getItem(STORAGE_KEY)
-    if (savedSession) {
-      try {
-        const session = JSON.parse(savedSession)
-        console.log('Restoring session:', session)
-        setMultiplayerData(session)
-        setScreen('game')
-      } catch (err) {
-        console.error('Failed to restore session:', err)
-        localStorage.removeItem(STORAGE_KEY)
+    // 旧形式: /?room=XXXX にも対応（後方互換性）
+    else {
+      const urlParams = new URLSearchParams(window.location.search)
+      const roomCodeFromUrl = urlParams.get('room')
+      if (roomCodeFromUrl) {
+        // 新しいURL形式にリダイレクト
+        window.history.replaceState({}, '', `/matching-game?room=${roomCodeFromUrl}`)
+        setSelectedGame('matching-game')
       }
     }
   }, [])
 
-  // セッション情報をlocalStorageに保存
-  const saveSession = (data) => {
-    if (data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
+  const handleSelectGame = (gameId) => {
+    setSelectedGame(gameId)
+    // URLパスを更新
+    if (gameId === 'matching-game') {
+      window.history.pushState({}, '', '/matching-game')
     }
   }
 
-  // ルームを作成
-  const handleCreateRoom = async (hostName) => {
-    try {
-      console.log('Creating room with hostName:', hostName)
-      console.log('Using Amplify with IAM auth (Cognito Identity Pool)')
+  const handleBackToGameSelect = () => {
+    setSelectedGame(null)
+    // ルートパスに戻る
+    window.history.pushState({}, '', '/')
+  }
 
-      const result = await client.graphql({
-        query: CREATE_ROOM,
-        variables: { hostName }
-      })
-
-      console.log('Room created successfully:', result)
-      const room = result.data.createRoom
-      const sessionData = {
-        roomId: room.roomId,
-        playerId: room.hostId,
-        playerName: hostName,
-        isHost: true
+  // ブラウザの戻る/進むボタンに対応
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname
+      if (path === '/matching-game' || path === '/matching-game/') {
+        setSelectedGame('matching-game')
+      } else {
+        setSelectedGame(null)
       }
-      setMultiplayerData(sessionData)
-      saveSession(sessionData)
-      setScreen('game')
-    } catch (error) {
-      console.error('Failed to create room:', error)
-
-      // エラーの詳細を展開して表示
-      if (error.errors && error.errors.length > 0) {
-        console.error('GraphQL Errors:')
-        error.errors.forEach((err, index) => {
-          console.error(`Error ${index + 1}:`, {
-            message: err.message,
-            errorType: err.errorType,
-            path: err.path,
-            locations: err.locations,
-            errorInfo: err.errorInfo
-          })
-        })
-      }
-
-      console.error('Full error object:', JSON.stringify(error, null, 2))
-
-      const errorMessage = error.errors?.[0]?.message || error.message || 'Unknown error'
-      throw new Error('ルームの作成に失敗しました: ' + errorMessage)
     }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  // ゲーム選択画面
+  if (!selectedGame) {
+    return <GameSelect onSelectGame={handleSelectGame} />
   }
 
-  // ルームに参加
-  const handleJoinRoom = async (roomCode, playerName) => {
-    try {
-      const result = await client.graphql({
-        query: JOIN_ROOM,
-        variables: { roomCode, playerName }
-      })
-
-      const player = result.data.joinRoom
-      const sessionData = {
-        roomId: player.roomId,
-        playerId: player.playerId,
-        playerName: playerName,
-        isHost: false
-      }
-      setMultiplayerData(sessionData)
-      saveSession(sessionData)
-      setScreen('game')
-    } catch (error) {
-      console.error('Failed to join room:', error)
-      const errorMessage = error.errors?.[0]?.message || error.message || 'Unknown error'
-      throw new Error('ルームへの参加に失敗しました: ' + errorMessage)
-    }
+  // 一致させゲーム
+  if (selectedGame === 'matching-game') {
+    return <MatchingGameApp onBack={handleBackToGameSelect} />
   }
 
-  // ロビーに戻る
-  const handleBackToLobby = () => {
-    setScreen('lobby')
-    setMultiplayerData(null)
-  }
-
-  // ゲームから退出
-  const handleLeaveGame = () => {
-    saveSession(null) // セッションを削除
-    setScreen('lobby')
-    setMultiplayerData(null)
-  }
-
-  return (
-    <>
-      {screen === 'lobby' && (
-        <MultiplayerLobby
-          onCreateRoom={handleCreateRoom}
-          onJoinRoom={handleJoinRoom}
-          isHostMode={isHostMode}
-          initialRoomCode={initialRoomCode}
-        />
-      )}
-
-      {screen === 'game' && multiplayerData && (
-        <MultiplayerGame
-          roomId={multiplayerData.roomId}
-          playerId={multiplayerData.playerId}
-          playerName={multiplayerData.playerName}
-          isHost={multiplayerData.isHost}
-          onLeave={handleLeaveGame}
-        />
-      )}
-    </>
-  )
+  // その他のゲーム（将来用）
+  return <GameSelect onSelectGame={handleSelectGame} />
 }
 
 export default App
