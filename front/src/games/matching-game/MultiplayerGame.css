@@ -95,15 +95,36 @@
   flex-direction: column;
 }
 
-/* 黄色の放射状ストライプ背景 (お題表示・判定画面) */
+/* 紙吹雪風背景 (待機・判定画面) */
 .game-content.yellow-radial {
-  background:
-    repeating-conic-gradient(
-      from 0deg at 50% 50%,
-      #ffd700 0deg 2deg,
-      #ffed4e 2deg 4deg
-    ),
-    linear-gradient(135deg, #ffd700, #ffed4e);
+  background-color: #fffef5;
+  background-image:
+    /* カラフルなドット（紙吹雪） */
+    radial-gradient(circle at 10% 20%, #ff6b6b 3px, transparent 3px),
+    radial-gradient(circle at 25% 15%, #ffd93d 4px, transparent 4px),
+    radial-gradient(circle at 40% 25%, #6bcb77 3px, transparent 3px),
+    radial-gradient(circle at 55% 10%, #4d96ff 4px, transparent 4px),
+    radial-gradient(circle at 70% 22%, #ff9f43 3px, transparent 3px),
+    radial-gradient(circle at 85% 18%, #a66cff 4px, transparent 4px),
+    radial-gradient(circle at 15% 80%, #ff6b6b 4px, transparent 4px),
+    radial-gradient(circle at 30% 85%, #6bcb77 3px, transparent 3px),
+    radial-gradient(circle at 45% 78%, #ffd93d 4px, transparent 4px),
+    radial-gradient(circle at 60% 88%, #4d96ff 3px, transparent 3px),
+    radial-gradient(circle at 75% 82%, #ff9f43 4px, transparent 4px),
+    radial-gradient(circle at 90% 75%, #a66cff 3px, transparent 3px),
+    radial-gradient(circle at 5% 50%, #ffd93d 3px, transparent 3px),
+    radial-gradient(circle at 95% 45%, #6bcb77 4px, transparent 4px),
+    radial-gradient(circle at 20% 40%, #4d96ff 3px, transparent 3px),
+    radial-gradient(circle at 80% 55%, #ff6b6b 3px, transparent 3px),
+    radial-gradient(circle at 35% 60%, #a66cff 4px, transparent 4px),
+    radial-gradient(circle at 65% 45%, #ff9f43 3px, transparent 3px),
+    radial-gradient(circle at 50% 35%, #6bcb77 3px, transparent 3px),
+    radial-gradient(circle at 12% 65%, #ff9f43 4px, transparent 4px),
+    radial-gradient(circle at 88% 35%, #ffd93d 3px, transparent 3px),
+    radial-gradient(circle at 42% 92%, #4d96ff 4px, transparent 4px),
+    radial-gradient(circle at 72% 5%, #a66cff 3px, transparent 3px),
+    radial-gradient(circle at 8% 95%, #ff6b6b 3px, transparent 3px);
+  background-size: 100% 100%;
 }
 
 /* 青い背景 (回答画面) */
@@ -508,16 +529,39 @@
 }
 
 .result-overlay.success {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(74, 222, 128, 0.95) 100%);
+  background-color: rgba(255, 255, 240, 0.98);
+  background-image:
+    radial-gradient(circle at 10% 20%, #6bcb77 6px, transparent 6px),
+    radial-gradient(circle at 30% 10%, #ffd93d 5px, transparent 5px),
+    radial-gradient(circle at 50% 25%, #4d96ff 6px, transparent 6px),
+    radial-gradient(circle at 70% 15%, #ff9f43 5px, transparent 5px),
+    radial-gradient(circle at 90% 20%, #a66cff 6px, transparent 6px),
+    radial-gradient(circle at 20% 85%, #6bcb77 5px, transparent 5px),
+    radial-gradient(circle at 40% 90%, #ffd93d 6px, transparent 6px),
+    radial-gradient(circle at 60% 80%, #4d96ff 5px, transparent 5px),
+    radial-gradient(circle at 80% 88%, #ff9f43 6px, transparent 6px),
+    radial-gradient(circle at 5% 50%, #a66cff 5px, transparent 5px),
+    radial-gradient(circle at 95% 55%, #6bcb77 5px, transparent 5px);
 }
 
 .result-overlay.fail {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(248, 113, 113, 0.95) 100%);
+  background-color: rgba(255, 245, 245, 0.98);
+  background-image:
+    radial-gradient(circle at 15% 25%, #ff6b6b 6px, transparent 6px),
+    radial-gradient(circle at 35% 12%, #ffd93d 5px, transparent 5px),
+    radial-gradient(circle at 55% 20%, #ff9f43 6px, transparent 6px),
+    radial-gradient(circle at 75% 18%, #a66cff 5px, transparent 5px),
+    radial-gradient(circle at 92% 25%, #ff6b6b 5px, transparent 5px),
+    radial-gradient(circle at 25% 82%, #ffd93d 6px, transparent 6px),
+    radial-gradient(circle at 45% 88%, #ff9f43 5px, transparent 5px),
+    radial-gradient(circle at 65% 85%, #a66cff 6px, transparent 6px),
+    radial-gradient(circle at 85% 80%, #ff6b6b 5px, transparent 5px),
+    radial-gradient(circle at 8% 55%, #ffd93d 5px, transparent 5px),
+    radial-gradient(circle at 88% 50%, #ff9f43 5px, transparent 5px);
 }
 
 .result-content {
   text-align: center;
-  color: white;
 }
 
 .result-icon {
@@ -542,13 +586,21 @@
   font-size: 3rem;
   font-weight: bold;
   margin: 0 0 1rem 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.result-overlay.success .result-title {
+  color: #22c55e;
+}
+
+.result-overlay.fail .result-title {
+  color: #ef4444;
 }
 
 .result-message {
   font-size: 1.5rem;
   margin: 0;
-  opacity: 0.9;
+  color: #333;
 }
 
 /* 広い画面（デスクトップ）では横並び（4人まで1行、5人以上は折り返し） */
