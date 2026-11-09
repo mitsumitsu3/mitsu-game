@@ -2,6 +2,8 @@
 
 認識合わせゲームのAWSインフラストラクチャ定義とデプロイスクリプトです。
 
+月5 USDを超えたときにゲームを自動停止する独立したCloudFormationスタックは、[cost-guard/README.md](cost-guard/README.md)を参照してください。料金集計には遅延があり、5 USD以内の請求を保証するものではありません。
+
 ## ファイル構成
 
 - `cloudformation.yaml` - CloudFormationテンプレート（S3 + CloudFront）
